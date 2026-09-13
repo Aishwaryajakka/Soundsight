@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 203 92% 10%; /* #021E32 SoundSight deep navy */
+    --foreground: 200 60% 98%; /* #F7FBFD Snow white */
+    --card: 204 82% 24%; /* #0B466D Deep ocean blue */
+    --card-foreground: 200 60% 98%;
+    --popover: 203 91% 14%;
+    --popover-foreground: 200 60% 98%;
+    --primary: 196 77% 62%; /* #55C2E8 Bright ice/cyan blue */
+    --primary-foreground: 203 91% 14%;
+    --secondary: 201 64% 40%; /* #247CA8 Glacier blue */
+    --secondary-foreground: 200 60% 98%;
+    --muted: 204 82% 20%;
+    --muted-foreground: 196 68% 87%; /* #C6E8F5 Pale ice blue */
+    --accent: 201 64% 40%; /* #247CA8 */
+    --accent-foreground: 200 60% 98%;
+    --destructive: 358 100% 68%; /* #FF5A5F Signal Coral */
+    --destructive-foreground: 200 60% 98%;
+    --border: 201 64% 33%; /* #1A5F84 Subtle glacier border */
+    --input: 204 82% 24%;
+    --ring: 196 77% 62%;
+    --radius: 1rem;
+  }
+
+  .dark {
+    --background: 203 91% 14%;
+    --foreground: 200 60% 98%;
+    --card: 204 82% 24%;
+    --card-foreground: 200 60% 98%;
+    --popover: 203 91% 14%;
+    --popover-foreground: 200 60% 98%;
+    --primary: 196 77% 62%;
+    --primary-foreground: 203 91% 14%;
+    --secondary: 201 64% 40%;
+    --secondary-foreground: 200 60% 98%;
+    --muted: 204 82% 20%;
+    --muted-foreground: 196 68% 87%;
+    --accent: 201 64% 40%;
+    --accent-foreground: 200 60% 98%;
+    --destructive: 358 100% 68%;
+    --destructive-foreground: 200 60% 98%;
+    --border: 201 64% 33%;
+    --input: 204 82% 24%;
+    --ring: 196 77% 62%;
+  }
+}

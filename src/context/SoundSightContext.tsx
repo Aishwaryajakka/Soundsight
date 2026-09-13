@@ -1,0 +1,571 @@
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import {
+  SoundEvent,
+  SoundType,
+  SoundCategory,
+  SoundPriority,
+  AlertTrigger,
+  CustomSoundRecording,
+  AppSettings,
+  ImportantSoundSetting,
+} from '@/types/sound';
+import {
+  soundEventService,
+  DemoScenarioDefinition,
+  DEMO_SCENARIO_DEFINITIONS,
+} from '@/services/soundEventService';
+
+export interface SoundSightContextType {
+  isLiveListening: boolean;
+  setIsLiveListening: (val: boolean) => void;
+  micPermissionDenied: boolean;
+  setMicPermissionDenied: (val: boolean) => void;
+  activeSounds: SoundEvent[];
+  selectedSound: SoundEvent | null;
+  setSelectedSound: (sound: SoundEvent | null) => void;
+  soundHistory: SoundEvent[];
+  clearHistory: () => void;
+  deleteHistoryItem: (id: string) => void;
+  activeCategoryFilter: SoundCategory | 'all';
+  setActiveCategoryFilter: (cat: SoundCategory | 'all') => void;
+  alertTriggers: AlertTrigger[];
+  toggleAlertTrigger: (id: string) => void;
+  updateAlertTrigger: (id: string, updates: Partial<AlertTrigger>) => void;
+  importantSounds: ImportantSoundSetting[];
+  toggleImportantSound: (id: string) => void;
+  alertPriority: 'high' | 'normal' | 'muted';
+  setAlertPriority: (priority: 'high' | 'normal' | 'muted') => void;
+  onlyImportantAlerts: boolean;
+  setOnlyImportantAlerts: (val: boolean) => void;
+  visualAlertsEnabled: boolean;
+  setVisualAlertsEnabled: (val: boolean) => void;
+  hapticAlertsEnabled: boolean;
+  setHapticAlertsEnabled: (val: boolean) => void;
+  spokenAlertsEnabled: boolean;
+  setSpokenAlertsEnabled: (val: boolean) => void;
+  customSounds: CustomSoundRecording[];
+  addCustomSound: (sound: Omit<CustomSoundRecording, 'id' | 'recordedAt'>) => void;
+  deleteCustomSound: (id: string) => void;
+  settings: AppSettings;
+  updateSettings: (updates: Partial<AppSettings>) => void;
+  detectionSensitivity: 'Low' | 'Medium' | 'High';
+  setDetectionSensitivity: (val: 'Low' | 'Medium' | 'High') => void;
+  showConfidence: boolean;
+  setShowConfidence: (val: boolean) => void;
+  showSoundIntensity: boolean;
+  setShowSoundIntensity: (val: boolean) => void;
+  keepEventsVisibleDuration: '5s' | '10s' | '20s';
+  setKeepEventsVisibleDuration: (val: '5s' | '10s' | '20s') => void;
+  rawAudioStorageEnabled: boolean;
+  setRawAudioStorageEnabled: (val: boolean) => void;
+  ingestSoundEvent: (event: SoundEvent) => void;
+  triggerSoundEvent: (params: Parameters<typeof soundEventService.createSoundEvent>[0]) => void;
+  triggerScenario: (scenario: DemoScenarioDefinition) => void;
+  isStrobeActive: boolean;
+  dismissStrobe: () => void;
+  currentDecibelLevel: number;
+  lastTriggeredSoundId: string | null;
+  demoScenarios: DemoScenarioDefinition[];
+}
+
+const INITIAL_SETTINGS: AppSettings = {
+  audioSensitivity: 85,
+  micGainCalibration: 0,
+  compassTracking: true,
+  compassOffsetDeg: 0,
+  highContrastMode: false,
+  contourDensity: 'high',
+  textSizeScale: 'normal',
+  hapticIntensity: 'strong',
+  flashScreenOnCritical: false,
+  keepScreenAwake: true,
+};
+
+const INITIAL_IMPORTANT_SOUNDS: ImportantSoundSetting[] = [
+  { id: 'imp-knock', soundType: 'door_knock', name: 'Door Knock', category: 'household', enabled: true, iconName: 'DoorClosed' },
+  { id: 'imp-doorbell', soundType: 'doorbell', name: 'Doorbell', category: 'household', enabled: true, iconName: 'Bell' },
+  { id: 'imp-name', soundType: 'name_called', name: 'Name Called', category: 'speech', enabled: true, iconName: 'Volume2' },
+  { id: 'imp-alarm', soundType: 'alarm', name: 'Alarm', category: 'safety', enabled: true, iconName: 'Flame' },
+  { id: 'imp-appliance', soundType: 'appliance_beep', name: 'Appliance Beep', category: 'household', enabled: true, iconName: 'Microwave' },
+  { id: 'imp-dog', soundType: 'dog_bark', name: 'Dog Bark', category: 'household', enabled: true, iconName: 'ShieldAlert' },
+  { id: 'imp-baby', soundType: 'baby_crying', name: 'Baby Crying', category: 'speech', enabled: true, iconName: 'Baby' },
+];
+
+const SoundSightContext = createContext<SoundSightContextType | null>(null);
+
+export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isLiveListening, setIsLiveListening] = useState<boolean>(true);
+  const [micPermissionDenied, setMicPermissionDenied] = useState<boolean>(false);
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<SoundCategory | 'all'>('all');
+  const [selectedSound, setSelectedSound] = useState<SoundEvent | null>(null);
+  const [isStrobeActive, setIsStrobeActive] = useState<boolean>(false);
+  const [currentDecibelLevel, setCurrentDecibelLevel] = useState<number>(54);
+  const [lastTriggeredSoundId, setLastTriggeredSoundId] = useState<string | null>('event-door-knock');
+
+  // Persistent Configuration States
+  const [detectionSensitivity, setDetectionSensitivity] = useState<'Low' | 'Medium' | 'High'>('Medium');
+  const [showConfidence, setShowConfidence] = useState<boolean>(true);
+  const [showSoundIntensity, setShowSoundIntensity] = useState<boolean>(true);
+  const [keepEventsVisibleDuration, setKeepEventsVisibleDuration] = useState<'5s' | '10s' | '20s'>('10s');
+  const [visualAlertsEnabled, setVisualAlertsEnabled] = useState<boolean>(true);
+  const [hapticAlertsEnabled, setHapticAlertsEnabled] = useState<boolean>(true);
+  const [spokenAlertsEnabled, setSpokenAlertsEnabled] = useState<boolean>(false);
+  const [rawAudioStorageEnabled, setRawAudioStorageEnabled] = useState<boolean>(false);
+  const [alertPriority, setAlertPriority] = useState<'high' | 'normal' | 'muted'>('normal');
+  const [onlyImportantAlerts, setOnlyImportantAlerts] = useState<boolean>(false);
+  const [importantSounds, setImportantSounds] = useState<ImportantSoundSetting[]>(INITIAL_IMPORTANT_SOUNDS);
+
+  const [alertTriggers, setAlertTriggers] = useState<AlertTrigger[]>([]);
+  const [customSounds, setCustomSounds] = useState<CustomSoundRecording[]>([]);
+  const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
+
+  // Initial active sound events
+  const [activeSounds, setActiveSounds] = useState<SoundEvent[]>([
+    {
+      id: 'event-door-knock',
+      soundType: 'door_knock',
+      label: 'Door Knock',
+      direction: 'right',
+      angle: 90,
+      confidence: 0.96,
+      intensity: 0.82,
+      decibels: 78,
+      distanceMeters: 2.1,
+      priority: 'normal',
+      timestamp: Date.now() - 2000,
+      isActive: true,
+      timeAgo: '2s ago',
+      category: 'household',
+      iconName: 'DoorClosed',
+      description: 'Rhythmic wooden knock detected on the right entrance.',
+      frequencyHz: 450,
+      waveContours: [80, 100, 90, 75, 45],
+    },
+    {
+      id: 'event-doorbell',
+      soundType: 'doorbell',
+      label: 'Doorbell',
+      direction: 'front',
+      angle: 0,
+      confidence: 0.87,
+      intensity: 0.72,
+      decibels: 72,
+      distanceMeters: 3.2,
+      priority: 'normal',
+      timestamp: Date.now() - 8000,
+      isActive: true,
+      timeAgo: '8s ago',
+      category: 'household',
+      iconName: 'Bell',
+      description: 'Front entryway digital chime ringing.',
+      frequencyHz: 1200,
+      waveContours: [65, 85, 95, 80, 55],
+    },
+    {
+      id: 'event-name-called',
+      soundType: 'name_called',
+      label: 'Name Called',
+      direction: 'left',
+      angle: 270,
+      confidence: 0.91,
+      intensity: 0.68,
+      decibels: 68,
+      distanceMeters: 1.8,
+      priority: 'info',
+      timestamp: Date.now() - 14000,
+      isActive: true,
+      timeAgo: '14s ago',
+      category: 'speech',
+      iconName: 'Volume2',
+      description: 'Human voice calling user attention from the left.',
+      frequencyHz: 320,
+      waveContours: [50, 70, 85, 65, 40],
+    },
+    {
+      id: 'event-appliance',
+      soundType: 'appliance_beep',
+      label: 'Appliance Beep',
+      direction: 'back',
+      angle: 180,
+      confidence: 0.76,
+      intensity: 0.62,
+      decibels: 62,
+      distanceMeters: 4.5,
+      priority: 'info',
+      timestamp: Date.now() - 21000,
+      isActive: true,
+      timeAgo: '21s ago',
+      category: 'household',
+      iconName: 'Microwave',
+      description: 'High-pitch cycle completion beep from kitchen.',
+      frequencyHz: 2400,
+      waveContours: [40, 60, 75, 50, 30],
+    },
+  ]);
+
+  // Initial history log
+  const [soundHistory, setSoundHistory] = useState<SoundEvent[]>([
+    {
+      id: 'hist-1',
+      soundType: 'door_knock',
+      label: 'Door Knock',
+      direction: 'right',
+      angle: 90,
+      confidence: 0.96,
+      intensity: 0.82,
+      decibels: 78,
+      distanceMeters: 2.1,
+      priority: 'normal',
+      timestamp: Date.now() - 2000,
+      isActive: false,
+      timeAgo: '2s ago',
+      category: 'household',
+      iconName: 'DoorClosed',
+      description: 'Rhythmic wooden knock detected on right entrance.',
+      frequencyHz: 450,
+    },
+    {
+      id: 'hist-2',
+      soundType: 'doorbell',
+      label: 'Doorbell',
+      direction: 'front',
+      angle: 0,
+      confidence: 0.87,
+      intensity: 0.72,
+      decibels: 72,
+      distanceMeters: 3.2,
+      priority: 'normal',
+      timestamp: Date.now() - 8000,
+      isActive: false,
+      timeAgo: '8s ago',
+      category: 'household',
+      iconName: 'Bell',
+      description: 'Front entryway digital chime ringing.',
+      frequencyHz: 1200,
+    },
+    {
+      id: 'hist-3',
+      soundType: 'name_called',
+      label: 'Voice',
+      direction: 'left',
+      angle: 270,
+      confidence: 0.64,
+      intensity: 0.68,
+      decibels: 68,
+      distanceMeters: 1.8,
+      priority: 'info',
+      timestamp: Date.now() - 14000,
+      isActive: false,
+      timeAgo: '14s ago',
+      category: 'speech',
+      iconName: 'Volume2',
+      description: 'Human voice calling user attention from the left.',
+      frequencyHz: 320,
+    },
+    {
+      id: 'hist-4',
+      soundType: 'appliance_beep',
+      label: 'Appliance Beep',
+      direction: 'back',
+      angle: 180,
+      confidence: 0.52,
+      intensity: 0.62,
+      decibels: 62,
+      distanceMeters: 4.5,
+      priority: 'info',
+      timestamp: Date.now() - 60000,
+      isActive: false,
+      timeAgo: '1m ago',
+      category: 'household',
+      iconName: 'Microwave',
+      description: 'High-pitch cycle completion beep from kitchen.',
+      frequencyHz: 2400,
+    },
+    {
+      id: 'hist-5',
+      soundType: 'dog_bark',
+      label: 'Dog Bark',
+      direction: 'right',
+      angle: 80,
+      confidence: 0.72,
+      intensity: 0.76,
+      decibels: 76,
+      distanceMeters: 5.4,
+      priority: 'normal',
+      timestamp: Date.now() - 180000,
+      isActive: false,
+      timeAgo: '3m ago',
+      category: 'household',
+      iconName: 'ShieldAlert',
+      description: 'Audible canine barking detected in right vicinity.',
+      frequencyHz: 750,
+    },
+    {
+      id: 'hist-6',
+      soundType: 'car_horn',
+      label: 'Car Approaching',
+      direction: 'left',
+      angle: 270,
+      confidence: 0.68,
+      intensity: 0.7,
+      decibels: 74,
+      distanceMeters: 6.2,
+      priority: 'normal',
+      timestamp: Date.now() - 300000,
+      isActive: false,
+      timeAgo: '5m ago',
+      category: 'outdoor',
+      iconName: 'Car',
+      description: 'Approaching vehicle detected from the left.',
+      frequencyHz: 680,
+    },
+  ]);
+
+  // Haptics handler
+  const triggerHaptic = useCallback(
+    async (priority: SoundPriority) => {
+      if (Platform.OS === 'web' || !hapticAlertsEnabled || alertPriority === 'muted') return;
+      try {
+        if (priority === 'critical') {
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        } else if (priority === 'high' || priority === 'normal') {
+          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        } else {
+          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        }
+      } catch {
+        // Safe fallback
+      }
+    },
+    [hapticAlertsEnabled, alertPriority]
+  );
+
+  /**
+   * Centralized sound event ingestion
+   * All sources (real microphone AI or Demo simulation) pass their SoundEvent here.
+   */
+  const ingestSoundEvent = useCallback(
+    (event: SoundEvent) => {
+      setLastTriggeredSoundId(event.id);
+
+      // Active radar sounds: replace sound at the same direction or keep 4 active
+      setActiveSounds((prev) => {
+        const remaining = prev.filter((s) => s.direction !== event.direction);
+        return [event, ...remaining].slice(0, 4);
+      });
+
+      // Automatically prepends to Recent Sounds / history
+      setSoundHistory((prev) => [event, ...prev]);
+
+      // Update decibel meter
+      if (event.decibels) {
+        setCurrentDecibelLevel(event.decibels);
+      }
+
+      // Trigger tactile haptic pulse
+      triggerHaptic(event.priority);
+
+      // If visual alerts enabled and critical
+      if (visualAlertsEnabled && event.priority === 'critical') {
+        setIsStrobeActive(true);
+      }
+    },
+    [triggerHaptic, visualAlertsEnabled]
+  );
+
+  // Subscribe context to soundEventService
+  useEffect(() => {
+    const unsubscribe = soundEventService.subscribe((event) => {
+      ingestSoundEvent(event);
+    });
+    return unsubscribe;
+  }, [ingestSoundEvent]);
+
+  // Helper to trigger custom sound events
+  const triggerSoundEvent = useCallback(
+    (params: Parameters<typeof soundEventService.createSoundEvent>[0]) => {
+      const event = soundEventService.createSoundEvent(params);
+      soundEventService.emit(event);
+    },
+    []
+  );
+
+  // Helper to trigger demo scenarios
+  const triggerScenario = useCallback((scenario: DemoScenarioDefinition) => {
+    const event = soundEventService.createDemoSoundEvent(scenario.id);
+    soundEventService.emit(event);
+  }, []);
+
+  // Time ticker: update timeAgo strings and age decay for active sounds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setActiveSounds((prev) =>
+        prev.map((s) => {
+          const diffMs = now - s.timestamp;
+          const secs = Math.max(0, Math.floor(diffMs / 1000));
+          let timeAgo = 'Just now';
+          if (secs >= 60) {
+            timeAgo = `${Math.floor(secs / 60)}m ago`;
+          } else if (secs > 0) {
+            timeAgo = `${secs}s ago`;
+          }
+          return { ...s, timeAgo };
+        })
+      );
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    setSoundHistory([]);
+  }, []);
+
+  const deleteHistoryItem = useCallback((id: string) => {
+    setSoundHistory((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  const toggleAlertTrigger = useCallback((id: string) => {
+    setAlertTriggers((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, enabled: !t.enabled } : t))
+    );
+  }, []);
+
+  const updateAlertTrigger = useCallback((id: string, updates: Partial<AlertTrigger>) => {
+    setAlertTriggers((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
+    );
+  }, []);
+
+  const toggleImportantSound = useCallback((id: string) => {
+    setImportantSounds((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, enabled: !item.enabled } : item))
+    );
+  }, []);
+
+  const addCustomSound = useCallback((sound: Omit<CustomSoundRecording, 'id' | 'recordedAt'>) => {
+    const newSound: CustomSoundRecording = {
+      ...sound,
+      id: `cs-${Date.now()}`,
+      recordedAt: new Date().toISOString(),
+    };
+    setCustomSounds((prev) => [newSound, ...prev]);
+  }, []);
+
+  const deleteCustomSound = useCallback((id: string) => {
+    setCustomSounds((prev) => prev.filter((s) => s.id !== id));
+  }, []);
+
+  const updateSettings = useCallback((updates: Partial<AppSettings>) => {
+    setSettings((prev) => ({ ...prev, ...updates }));
+  }, []);
+
+  const dismissStrobe = useCallback(() => {
+    setIsStrobeActive(false);
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      isLiveListening,
+      setIsLiveListening,
+      micPermissionDenied,
+      setMicPermissionDenied,
+      activeSounds,
+      selectedSound,
+      setSelectedSound,
+      soundHistory,
+      clearHistory,
+      deleteHistoryItem,
+      activeCategoryFilter,
+      setActiveCategoryFilter,
+      alertTriggers,
+      toggleAlertTrigger,
+      updateAlertTrigger,
+      importantSounds,
+      toggleImportantSound,
+      alertPriority,
+      setAlertPriority,
+      onlyImportantAlerts,
+      setOnlyImportantAlerts,
+      visualAlertsEnabled,
+      setVisualAlertsEnabled,
+      hapticAlertsEnabled,
+      setHapticAlertsEnabled,
+      spokenAlertsEnabled,
+      setSpokenAlertsEnabled,
+      customSounds,
+      addCustomSound,
+      deleteCustomSound,
+      settings,
+      updateSettings,
+      detectionSensitivity,
+      setDetectionSensitivity,
+      showConfidence,
+      setShowConfidence,
+      showSoundIntensity,
+      setShowSoundIntensity,
+      keepEventsVisibleDuration,
+      setKeepEventsVisibleDuration,
+      rawAudioStorageEnabled,
+      setRawAudioStorageEnabled,
+      ingestSoundEvent,
+      triggerSoundEvent,
+      triggerScenario,
+      isStrobeActive,
+      dismissStrobe,
+      currentDecibelLevel,
+      lastTriggeredSoundId,
+      demoScenarios: DEMO_SCENARIO_DEFINITIONS,
+    }),
+    [
+      isLiveListening,
+      micPermissionDenied,
+      activeSounds,
+      selectedSound,
+      soundHistory,
+      clearHistory,
+      deleteHistoryItem,
+      activeCategoryFilter,
+      alertTriggers,
+      toggleAlertTrigger,
+      updateAlertTrigger,
+      importantSounds,
+      toggleImportantSound,
+      alertPriority,
+      onlyImportantAlerts,
+      visualAlertsEnabled,
+      hapticAlertsEnabled,
+      spokenAlertsEnabled,
+      customSounds,
+      addCustomSound,
+      deleteCustomSound,
+      settings,
+      updateSettings,
+      detectionSensitivity,
+      showConfidence,
+      showSoundIntensity,
+      keepEventsVisibleDuration,
+      rawAudioStorageEnabled,
+      ingestSoundEvent,
+      triggerSoundEvent,
+      triggerScenario,
+      isStrobeActive,
+      dismissStrobe,
+      currentDecibelLevel,
+      lastTriggeredSoundId,
+    ]
+  );
+
+  return <SoundSightContext.Provider value={value}>{children}</SoundSightContext.Provider>;
+};
+
+export const useSoundSight = () => {
+  const context = useContext(SoundSightContext);
+  if (!context) {
+    throw new Error('useSoundSight must be used within a SoundSightProvider');
+  }
+  return context;
+};
