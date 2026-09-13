@@ -17,13 +17,22 @@ import {
   DemoScenarioDefinition,
   DEMO_SCENARIO_DEFINITIONS,
 } from '@/services/soundEventService';
-import { liveSoundEventService } from '@/services/liveSoundEventService';
+import {
+  liveSoundEventService,
+  type LiveSoundConnectionState,
+} from '@/services/liveSoundEventService';
 import {
   mergeSoundHistory,
   SoundHistoryStorage,
 } from '@/services/soundHistoryStorage';
+import { acceptUniqueEventId, hapticActionForPriority } from '@/services/eventAlertPolicy';
+import {
+  DEFAULT_PERSISTENT_SOUND_SETTINGS,
+  SoundSettingsStorage,
+} from '@/services/soundSettingsStorage';
 
 export interface SoundSightContextType {
+  liveConnectionState: LiveSoundConnectionState;
   isLiveListening: boolean;
   setIsLiveListening: (val: boolean) => void;
   micPermissionDenied: boolean;
@@ -101,8 +110,13 @@ const INITIAL_IMPORTANT_SOUNDS: ImportantSoundSetting[] = [
 
 const SoundSightContext = createContext<SoundSightContextType | null>(null);
 const soundHistoryStorage = new SoundHistoryStorage(AsyncStorage);
+const soundSettingsStorage = new SoundSettingsStorage(AsyncStorage);
+const MAX_HANDLED_EVENT_IDS = 256;
 
 export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [liveConnectionState, setLiveConnectionState] = useState<LiveSoundConnectionState>(
+    liveSoundEventService.getConnectionState()
+  );
   const [isLiveListening, setIsLiveListening] = useState<boolean>(true);
   const [micPermissionDenied, setMicPermissionDenied] = useState<boolean>(false);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<SoundCategory | 'all'>('all');
@@ -113,11 +127,11 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Persistent Configuration States
   const [detectionSensitivity, setDetectionSensitivity] = useState<'Low' | 'Medium' | 'High'>('Medium');
-  const [showConfidence, setShowConfidence] = useState<boolean>(true);
-  const [showSoundIntensity, setShowSoundIntensity] = useState<boolean>(true);
-  const [keepEventsVisibleDuration, setKeepEventsVisibleDuration] = useState<'5s' | '10s' | '20s'>('10s');
+  const [showConfidence, setShowConfidence] = useState<boolean>(DEFAULT_PERSISTENT_SOUND_SETTINGS.showConfidence);
+  const [showSoundIntensity, setShowSoundIntensity] = useState<boolean>(DEFAULT_PERSISTENT_SOUND_SETTINGS.showSoundIntensity);
+  const [keepEventsVisibleDuration, setKeepEventsVisibleDuration] = useState<'5s' | '10s' | '20s'>(DEFAULT_PERSISTENT_SOUND_SETTINGS.keepEventsVisibleDuration);
   const [visualAlertsEnabled, setVisualAlertsEnabled] = useState<boolean>(true);
-  const [hapticAlertsEnabled, setHapticAlertsEnabled] = useState<boolean>(true);
+  const [hapticAlertsEnabled, setHapticAlertsEnabled] = useState<boolean>(DEFAULT_PERSISTENT_SOUND_SETTINGS.hapticAlertsEnabled);
   const [spokenAlertsEnabled, setSpokenAlertsEnabled] = useState<boolean>(false);
   const [rawAudioStorageEnabled, setRawAudioStorageEnabled] = useState<boolean>(false);
   const [alertPriority, setAlertPriority] = useState<'high' | 'normal' | 'muted'>('normal');
@@ -333,6 +347,34 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const pendingHistoryEvents = useRef<SoundEvent[]>([]);
   const pendingHistoryDeletions = useRef(new Set<string>());
   const historyClearedDuringRestore = useRef(false);
+  const handledEventIds = useRef(new Set<string>());
+  const handledEventOrder = useRef<string[]>([]);
+  const settingsRestored = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void soundSettingsStorage.load().then((savedSettings) => {
+      if (cancelled) return;
+      setKeepEventsVisibleDuration(savedSettings.keepEventsVisibleDuration);
+      setShowConfidence(savedSettings.showConfidence);
+      setShowSoundIntensity(savedSettings.showSoundIntensity);
+      setHapticAlertsEnabled(savedSettings.hapticAlertsEnabled);
+      settingsRestored.current = true;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!settingsRestored.current) return;
+    void soundSettingsStorage.save({
+      keepEventsVisibleDuration,
+      showConfidence,
+      showSoundIntensity,
+      hapticAlertsEnabled,
+    });
+  }, [keepEventsVisibleDuration, showConfidence, showSoundIntensity, hapticAlertsEnabled]);
 
   // Restore once without allowing the initial sample state to overwrite disk.
   // Events arriving during the async read are merged afterward instead of lost.
@@ -344,9 +386,15 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const baseHistory = historyClearedDuringRestore.current
           ? []
           : storedHistory ?? currentHistory;
-        return mergeSoundHistory(pendingHistoryEvents.current, baseHistory).filter(
+        const restoredHistory = mergeSoundHistory(pendingHistoryEvents.current, baseHistory).filter(
           (event) => !pendingHistoryDeletions.current.has(event.id)
         );
+        const rememberedIds = restoredHistory
+          .slice(0, MAX_HANDLED_EVENT_IDS)
+          .map((event) => event.id);
+        handledEventOrder.current = rememberedIds;
+        handledEventIds.current = new Set(rememberedIds);
+        return restoredHistory;
       });
       historyRestored.current = true;
       pendingHistoryEvents.current = [];
@@ -365,14 +413,17 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Haptics handler
   const triggerHaptic = useCallback(
     async (priority: SoundPriority) => {
-      if (Platform.OS === 'web' || !hapticAlertsEnabled || alertPriority === 'muted') return;
+      const action = hapticActionForPriority(priority, {
+        enabled: hapticAlertsEnabled,
+        muted: alertPriority === 'muted',
+        isWeb: Platform.OS === 'web',
+      });
+      if (action === 'none') return;
       try {
-        if (priority === 'critical') {
+        if (action === 'notification-warning') {
           await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        } else if (priority === 'high' || priority === 'normal') {
-          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
         } else {
-          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
         }
       } catch {
         // Safe fallback
@@ -387,6 +438,15 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
    */
   const ingestSoundEvent = useCallback(
     (event: SoundEvent) => {
+      // One stabilized event ID may arrive more than once after transport
+      // reconnects. Suppress every downstream side effect, including haptics.
+      if (!acceptUniqueEventId(
+        event.id,
+        handledEventIds.current,
+        handledEventOrder.current,
+        MAX_HANDLED_EVENT_IDS
+      )) return;
+
       setLastTriggeredSoundId(event.id);
 
       // Active radar sounds: replace sound at the same direction or keep 4 active
@@ -428,10 +488,15 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return unsubscribe;
   }, [ingestSoundEvent]);
 
-  // Optional live AI source. Demo Mode continues to publish through the same event service.
+  // One shared live AI source and one state subscription. Demo Mode continues
+  // to publish through the same event service when the engine is unavailable.
   useEffect(() => {
+    const unsubscribeConnectionState = liveSoundEventService.subscribeConnectionState(
+      setLiveConnectionState
+    );
     liveSoundEventService.start();
     return () => {
+      unsubscribeConnectionState();
       liveSoundEventService.stop();
     };
   }, []);
@@ -451,12 +516,13 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     soundEventService.emit(event);
   }, []);
 
-  // Time ticker: update timeAgo strings and age decay for active sounds
+  // One shared ticker updates labels and expires map visuals without touching History or Alerts.
   useEffect(() => {
+    const visibleDurationMs = Number.parseInt(keepEventsVisibleDuration, 10) * 1000;
     const timer = setInterval(() => {
       const now = Date.now();
       setActiveSounds((prev) =>
-        prev.map((s) => {
+        prev.filter((sound) => now - sound.timestamp < visibleDurationMs).map((s) => {
           const diffMs = now - s.timestamp;
           const secs = Math.max(0, Math.floor(diffMs / 1000));
           let timeAgo = 'Just now';
@@ -471,7 +537,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [keepEventsVisibleDuration]);
 
   const clearHistory = useCallback(() => {
     if (!historyRestored.current) {
@@ -534,6 +600,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const value = useMemo(
     () => ({
+      liveConnectionState,
       isLiveListening,
       setIsLiveListening,
       micPermissionDenied,
@@ -586,6 +653,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       demoScenarios: DEMO_SCENARIO_DEFINITIONS,
     }),
     [
+      liveConnectionState,
       isLiveListening,
       micPermissionDenied,
       activeSounds,

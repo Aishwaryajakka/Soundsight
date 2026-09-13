@@ -6,17 +6,25 @@ import { useSoundSight } from '@/context/SoundSightContext';
 import { GlacierWave } from '@/components/branding/GlacierWave';
 import { SoundDetailModal } from '@/components/SoundDetailModal';
 import { SoundIcon } from '@/components/SoundIcon';
+import { shouldDisplayAlert } from '@/services/eventAlertPolicy';
 import type { SoundEvent } from '@/types/sound';
 
 export default function AlertsScreen() {
   const state = useSoundSight();
   const [preferencesVisible, setPreferencesVisible] = useState(false);
   const [selectedSound, setSelectedSound] = useState<SoundEvent | null>(null);
-  const recentAlerts = [
-    state.soundHistory.find((sound) => sound.soundType === 'doorbell'),
-    state.soundHistory.find((sound) => sound.soundType === 'name_called'),
-    state.soundHistory.find((sound) => sound.soundType === 'dog_bark'),
-  ].filter((sound): sound is SoundEvent => Boolean(sound));
+  const recentAlerts = state.soundHistory
+    .filter((sound) => shouldDisplayAlert(sound.priority))
+    .slice(0, 20);
+
+  const formatTimestamp = (timestamp: number) => {
+    const date = new Date(timestamp);
+    if (!Number.isFinite(timestamp) || Number.isNaN(date.getTime())) return 'Unknown time';
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+    if (elapsedSeconds < 60) return elapsedSeconds < 2 ? 'Just now' : `${elapsedSeconds}s ago`;
+    if (elapsedSeconds < 3600) return `${Math.floor(elapsedSeconds / 60)}m ago`;
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-[#021E32]" edges={['top', 'left', 'right']}>
@@ -30,27 +38,36 @@ export default function AlertsScreen() {
         <View className="gap-1.5">
           {recentAlerts.map((sound) => {
             const confidence = Math.round((sound.confidence <= 1 ? sound.confidence : sound.confidence / 100) * 100);
+            const critical = sound.priority === 'critical';
             return (
               <Pressable
                 key={sound.id}
                 accessibilityRole="button"
-                accessibilityLabel={`${sound.label} detected, ${sound.direction}, ${confidence} percent confidence`}
+                accessibilityLabel={`${critical ? 'Critical' : 'High priority'} ${sound.label} detected, ${sound.direction}${state.showConfidence ? `, ${confidence} percent confidence` : ''}`}
                 onPress={() => setSelectedSound(sound)}
-                className="h-[62px] flex-row items-center rounded-xl border border-[#55C2E8]/20 bg-[#062C45]/90 px-2.5"
+                className={`min-h-[62px] flex-row items-center rounded-xl border px-2.5 ${critical ? 'border-[#FF7A7E]/55 bg-[#0A3049]' : 'border-[#55C2E8]/35 bg-[#062C45]/90'}`}
               >
                 <View className="h-10 w-10 items-center justify-center rounded-[10px] bg-[#0A3B59]">
                   <SoundIcon name={sound.iconName} soundType={sound.soundType} size={20} color="#E4F7FD" />
                 </View>
                 <View className="ml-3 flex-1">
-                  <Text className="text-[13px] font-semibold text-[#F7FBFD]">{sound.label} Detected</Text>
+                  <View className="flex-row items-center gap-2">
+                    <Text className="text-[13px] font-semibold text-[#F7FBFD]">{sound.label} Detected</Text>
+                    <Text className={`text-[9px] font-bold uppercase tracking-wide ${critical ? 'text-[#FF9A9D]' : 'text-[#55C2E8]'}`}>{sound.priority}</Text>
+                  </View>
                   <Text className="mt-0.5 text-[11px] capitalize text-[#A9C6D8]">
-                    {sound.direction.replace('_', ' ')} · {sound.timeAgo || 'Recent'}
+                    {sound.direction.replace('_', ' ')} · {formatTimestamp(sound.timestamp)}
                   </Text>
                 </View>
-                <Text className="ml-3 text-[15px] font-medium text-[#F7FBFD]">{confidence}%</Text>
+                {state.showConfidence && <Text className="ml-3 text-[15px] font-medium text-[#F7FBFD]">{confidence}%</Text>}
               </Pressable>
             );
           })}
+          {recentAlerts.length === 0 && (
+            <View className="items-center rounded-xl border border-[#55C2E8]/10 bg-[#062C45]/45 py-6">
+              <Text className="text-[13px] text-[#A9C6D8]">No high-priority alerts.</Text>
+            </View>
+          )}
         </View>
 
         <View className="relative -mx-4 mt-2 h-[350px] overflow-hidden">

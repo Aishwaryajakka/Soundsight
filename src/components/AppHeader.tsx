@@ -1,11 +1,64 @@
 import type React from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { AlertTriangle } from 'lucide-react-native';
+import type { LiveSoundConnectionState } from '@/services/liveSoundEventService';
 import { SoundSightWordmark } from './branding/SoundSightWordmark';
 
-interface AppHeaderProps { listening?: boolean; onToggleListening?: () => void }
-export const AppHeader: React.FC<AppHeaderProps> = ({ listening, onToggleListening }) => (
-  <View className="h-14 flex-row items-center justify-between">
-    <SoundSightWordmark markSize={36} textSize="lg" />
-    {typeof listening === 'boolean' && <Pressable accessibilityRole="button" accessibilityLabel={listening ? 'Listening. Tap to pause.' : 'Paused. Tap to listen.'} onPress={onToggleListening} className="h-9 flex-row items-center gap-2 rounded-full border border-[#55C2E8]/35 bg-[#062C45] px-3"><View className={`h-2 w-2 rounded-full ${listening ? 'bg-[#20D6B5]' : 'bg-[#6F93A8]'}`} /><Text className="text-xs font-medium text-[#C6E8F5]">{listening ? 'Listening…' : 'Paused'}</Text></Pressable>}
-  </View>
-);
+interface AppHeaderProps {
+  listening?: boolean;
+  connectionState?: LiveSoundConnectionState;
+  onToggleListening?: () => void;
+}
+
+const statusPresentation = (state: LiveSoundConnectionState) => {
+  switch (state) {
+    case 'connected':
+      return { label: 'Listening', accessibilityLabel: 'Live AI connected. Listening.' };
+    case 'connecting':
+      return { label: 'Connecting', accessibilityLabel: 'Connecting to live AI.' };
+    case 'error':
+      return { label: 'AI Offline', accessibilityLabel: 'Live AI is offline. Demo Mode is available.' };
+    default:
+      return { label: 'Demo Mode', accessibilityLabel: 'Live AI disconnected. Demo Mode is active.' };
+  }
+};
+
+export const AppHeader: React.FC<AppHeaderProps> = ({
+  listening,
+  connectionState,
+  onToggleListening,
+}) => {
+  const status = connectionState ? statusPresentation(connectionState) : null;
+  const label = status?.label ?? (listening ? 'Listening…' : 'Paused');
+  const accessibilityLabel = status?.accessibilityLabel ??
+    (listening ? 'Listening. Tap to pause.' : 'Paused. Tap to listen.');
+
+  return (
+    <View className="h-14 flex-row items-center justify-between">
+      <SoundSightWordmark markSize={36} textSize="lg" />
+      {typeof listening === 'boolean' && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={accessibilityLabel}
+          onPress={onToggleListening}
+          className="h-9 flex-row items-center gap-2 rounded-full border border-[#55C2E8]/35 bg-[#062C45] px-3"
+        >
+          {connectionState === 'error' ? (
+            <AlertTriangle size={12} color="#F1B85B" strokeWidth={2.2} />
+          ) : (
+            <View
+              className={`h-2 w-2 rounded-full ${
+                connectionState === 'connected'
+                  ? 'bg-[#20D6B5]'
+                  : connectionState === 'connecting'
+                    ? 'border border-[#55C2E8]'
+                    : 'border border-[#6F93A8]'
+              }`}
+            />
+          )}
+          <Text className="text-xs font-medium text-[#C6E8F5]">{label}</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+};

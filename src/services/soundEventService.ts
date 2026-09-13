@@ -1,10 +1,10 @@
-import {
+import type {
   SoundEvent,
   SoundType,
   SoundDirection,
   SoundPriority,
   SoundCategory,
-} from '@/types/sound';
+} from '../types/sound';
 
 export interface DemoScenarioDefinition {
   id: string;

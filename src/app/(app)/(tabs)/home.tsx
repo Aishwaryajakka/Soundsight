@@ -22,6 +22,7 @@ import type { SoundEvent } from '@/types/sound';
 export default function MapScreen() {
   const router = useRouter();
   const {
+    liveConnectionState,
     isLiveListening,
     setIsLiveListening,
     micPermissionDenied,
@@ -81,7 +82,11 @@ export default function MapScreen() {
           </View>
         )}
 
-        <AppHeader listening={isLiveListening} onToggleListening={toggleListening} />
+        <AppHeader
+          listening={isLiveListening}
+          connectionState={liveConnectionState}
+          onToggleListening={toggleListening}
+        />
 
         {/* 2. HERO SPATIAL SOUND MAP */}
         <View className="relative my-1 items-center justify-center">
@@ -150,7 +155,7 @@ export default function MapScreen() {
                   <Pressable
                     key={item.id}
                     accessibilityRole="button"
-                    accessibilityLabel={`${item.label}, ${item.direction}, ${confidence} percent confidence`}
+                    accessibilityLabel={`${item.label}, ${item.direction}${showConfidence ? `, ${confidence} percent confidence` : ''}`}
                     onPress={() => handleSelectSound(item)}
                     className={`h-[54px] flex-row items-center rounded-xl border border-[#55C2E8]/10 bg-[#082B43]/90 px-2 ${index > 0 ? 'mt-1.5' : ''}`}
                   >
@@ -161,7 +166,7 @@ export default function MapScreen() {
                       <Text className="text-[13px] font-semibold text-[#F7FBFD]">{item.label}</Text>
                       <Text className="mt-0.5 text-[11px] capitalize text-[#9FC2D5]">{item.direction.replace('_', ' ')} · {item.timeAgo || 'Recent'}</Text>
                     </View>
-                    <Text className="ml-2 text-[14px] font-medium text-[#F7FBFD]">{confidence}%</Text>
+                    {showConfidence && <Text className="ml-2 text-[14px] font-medium text-[#F7FBFD]">{confidence}%</Text>}
                   </Pressable>
                 );
               })}

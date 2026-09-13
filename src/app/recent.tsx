@@ -10,7 +10,7 @@ import { useSoundSight } from '@/context/SoundSightContext';
 import type { SoundEvent } from '@/types/sound';
 
 export default function RecentSoundsScreen() {
-  const { soundHistory, isLiveListening, setIsLiveListening } = useSoundSight();
+  const { soundHistory, isLiveListening, setIsLiveListening, showConfidence } = useSoundSight();
   const [selectedSound, setSelectedSound] = useState<SoundEvent | null>(null);
 
   return (
@@ -25,7 +25,7 @@ export default function RecentSoundsScreen() {
         <View className="gap-2">
           {soundHistory.slice(0, 6).map((sound) => {
             const confidence = Math.round((sound.confidence <= 1 ? sound.confidence : sound.confidence / 100) * 100);
-            return <Pressable key={sound.id} accessibilityRole="button" onPress={() => setSelectedSound(sound)} className="h-[62px] flex-row items-center rounded-[13px] border border-[#55C2E8]/20 bg-[#062C45]/90 px-2.5"><View className="h-10 w-10 items-center justify-center rounded-[10px] bg-[#0A3B59]"><SoundIcon name={sound.iconName} soundType={sound.soundType} size={20} color="#E4F7FD" /></View><View className="ml-3 flex-1"><Text className="text-[14px] font-semibold text-[#F7FBFD]">{sound.label}</Text><Text className="mt-0.5 text-[12px] capitalize text-[#A9C6D8]">{sound.direction.replace('_', ' ')} · {sound.timeAgo || 'Recent'}</Text></View><Text className="ml-3 text-[16px] font-medium text-[#F7FBFD]">{confidence}%</Text></Pressable>;
+            return <Pressable key={sound.id} accessibilityRole="button" accessibilityLabel={`${sound.label}, ${sound.direction}${showConfidence ? `, ${confidence} percent confidence` : ''}`} onPress={() => setSelectedSound(sound)} className="h-[62px] flex-row items-center rounded-[13px] border border-[#55C2E8]/20 bg-[#062C45]/90 px-2.5"><View className="h-10 w-10 items-center justify-center rounded-[10px] bg-[#0A3B59]"><SoundIcon name={sound.iconName} soundType={sound.soundType} size={20} color="#E4F7FD" /></View><View className="ml-3 flex-1"><Text className="text-[14px] font-semibold text-[#F7FBFD]">{sound.label}</Text><Text className="mt-0.5 text-[12px] capitalize text-[#A9C6D8]">{sound.direction.replace('_', ' ')} · {sound.timeAgo || 'Recent'}</Text></View>{showConfidence && <Text className="ml-3 text-[16px] font-medium text-[#F7FBFD]">{confidence}%</Text>}</Pressable>;
           })}
         </View>
       </ScrollView>

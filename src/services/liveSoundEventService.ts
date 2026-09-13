@@ -1,5 +1,5 @@
-import { soundEventService } from '@/services/soundEventService';
-import { parseSoundEvent } from '@/services/soundEventValidation';
+import { soundEventService } from './soundEventService';
+import { parseSoundEvent } from './soundEventValidation';
 
 export type LiveSoundConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -102,6 +102,9 @@ export class LiveSoundEventService {
       if (this.intentionallyStopped) {
         this.setState('disconnected');
       } else {
+        // Preserve an explicit error raised by onerror; otherwise surface a
+        // clean server stop immediately while the reconnect timer is pending.
+        if (this.state !== 'error') this.setState('disconnected');
         this.scheduleReconnect(generation);
       }
     };
