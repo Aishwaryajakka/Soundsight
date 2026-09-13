@@ -1,0 +1,11 @@
+numpy>=1.26,<2
+sounddevice>=0.5,<1
+soundfile>=0.12,<1
+matplotlib>=3.8,<4
+scipy>=1.11,<2
+tensorflow==2.16.2
+tensorflow-hub==0.16.1
+tf-keras==2.16.0
+# macOS system Python 3.9 links LibreSSL; urllib3 1.26 avoids its OpenSSL 1.1 warning.
+urllib3>=1.26,<2
+websockets>=12,<13

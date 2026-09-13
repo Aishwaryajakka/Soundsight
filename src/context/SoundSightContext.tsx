@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   SoundEvent,
   SoundType,
@@ -16,6 +17,11 @@ import {
   DemoScenarioDefinition,
   DEMO_SCENARIO_DEFINITIONS,
 } from '@/services/soundEventService';
+import { liveSoundEventService } from '@/services/liveSoundEventService';
+import {
+  mergeSoundHistory,
+  SoundHistoryStorage,
+} from '@/services/soundHistoryStorage';
 
 export interface SoundSightContextType {
   isLiveListening: boolean;
@@ -94,6 +100,7 @@ const INITIAL_IMPORTANT_SOUNDS: ImportantSoundSetting[] = [
 ];
 
 const SoundSightContext = createContext<SoundSightContextType | null>(null);
+const soundHistoryStorage = new SoundHistoryStorage(AsyncStorage);
 
 export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLiveListening, setIsLiveListening] = useState<boolean>(true);
@@ -322,6 +329,38 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       frequencyHz: 680,
     },
   ]);
+  const historyRestored = useRef(false);
+  const pendingHistoryEvents = useRef<SoundEvent[]>([]);
+  const pendingHistoryDeletions = useRef(new Set<string>());
+  const historyClearedDuringRestore = useRef(false);
+
+  // Restore once without allowing the initial sample state to overwrite disk.
+  // Events arriving during the async read are merged afterward instead of lost.
+  useEffect(() => {
+    let cancelled = false;
+    void soundHistoryStorage.load().then((storedHistory) => {
+      if (cancelled) return;
+      setSoundHistory((currentHistory) => {
+        const baseHistory = historyClearedDuringRestore.current
+          ? []
+          : storedHistory ?? currentHistory;
+        return mergeSoundHistory(pendingHistoryEvents.current, baseHistory).filter(
+          (event) => !pendingHistoryDeletions.current.has(event.id)
+        );
+      });
+      historyRestored.current = true;
+      pendingHistoryEvents.current = [];
+      pendingHistoryDeletions.current.clear();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!historyRestored.current) return;
+    void soundHistoryStorage.save(soundHistory);
+  }, [soundHistory]);
 
   // Haptics handler
   const triggerHaptic = useCallback(
@@ -357,7 +396,13 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       });
 
       // Automatically prepends to Recent Sounds / history
-      setSoundHistory((prev) => [event, ...prev]);
+      if (!historyRestored.current) {
+        pendingHistoryEvents.current = mergeSoundHistory(
+          [event],
+          pendingHistoryEvents.current
+        );
+      }
+      setSoundHistory((prev) => mergeSoundHistory([event], prev));
 
       // Update decibel meter
       if (event.decibels) {
@@ -382,6 +427,14 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
     return unsubscribe;
   }, [ingestSoundEvent]);
+
+  // Optional live AI source. Demo Mode continues to publish through the same event service.
+  useEffect(() => {
+    liveSoundEventService.start();
+    return () => {
+      liveSoundEventService.stop();
+    };
+  }, []);
 
   // Helper to trigger custom sound events
   const triggerSoundEvent = useCallback(
@@ -421,10 +474,22 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   const clearHistory = useCallback(() => {
+    if (!historyRestored.current) {
+      historyClearedDuringRestore.current = true;
+      pendingHistoryEvents.current = [];
+      pendingHistoryDeletions.current.clear();
+    }
     setSoundHistory([]);
+    void soundHistoryStorage.clear();
   }, []);
 
   const deleteHistoryItem = useCallback((id: string) => {
+    if (!historyRestored.current) {
+      pendingHistoryDeletions.current.add(id);
+      pendingHistoryEvents.current = pendingHistoryEvents.current.filter(
+        (event) => event.id !== id
+      );
+    }
     setSoundHistory((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
