@@ -6,7 +6,7 @@ import {
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, type RelativePathString } from 'expo-router';
 import {
   ChevronRight,
   Pause,
@@ -128,7 +128,7 @@ export default function MapScreen() {
               Recent Sounds
             </Text>
             <Pressable
-              onPress={() => router.push('/(app)/(tabs)/history')}
+              onPress={() => router.push('/recent' as RelativePathString)}
               className="flex-row items-center gap-0.5 active:opacity-70"
             >
               <Text className="text-xs font-semibold text-[#55C2E8]">

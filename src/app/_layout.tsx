@@ -20,6 +20,9 @@ function RootAppContent() {
       <StatusBar style="light" backgroundColor="#021E32" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#021E32' } }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="microphone" />
+        <Stack.Screen name="recent" />
+        <Stack.Screen name="about" />
         <Stack.Screen name="(app)" />
       </Stack>
       <StrobeOverlay active={isStrobeActive} onDismiss={dismissStrobe} />
