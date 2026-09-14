@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 import threading
 import time
@@ -244,7 +245,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--event-merge-seconds", type=float, default=2.5, metavar="SECONDS")
     parser.add_argument("--event-cooldown-seconds", type=float, default=3.0, metavar="SECONDS")
     parser.add_argument("--host", default="0.0.0.0", help="WebSocket bind host")
-    parser.add_argument("--port", type=int, default=8765, help="WebSocket bind port")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("PORT", "8765")),
+        help="WebSocket bind port (defaults to PORT or 8765)",
+    )
     parser.add_argument("--ws-path", default="/events", help="WebSocket path")
     parser.add_argument("--client-queue-size", type=int, default=32, help="events buffered per client")
     parser.add_argument("--transcription-model", default="tiny.en", help="local faster-whisper model")
@@ -294,10 +300,15 @@ def main() -> int:
             classify_file(args.file, config)
         elif args.localization_test:
             localization_test(config)
-        elif args.serve or args.send_test_event:
+        elif args.serve or args.send_test_event or "PORT" in os.environ:
             from websocket_server import serve_engine
 
-            asyncio.run(serve_engine(config, test_event_only=args.send_test_event, source_kind=args.source))
+            # Render supplies PORT and has no physical microphone. With its
+            # prescribed `python main.py` start command, accept client PCM over
+            # the existing WebSocket transport. Explicit local CLI choices keep
+            # their existing behavior.
+            source_kind = "websocket" if "PORT" in os.environ else args.source
+            asyncio.run(serve_engine(config, test_event_only=args.send_test_event, source_kind=source_kind))
         else:
             run_meter(config)
     except KeyboardInterrupt:

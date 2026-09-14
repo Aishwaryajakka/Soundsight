@@ -1,6 +1,6 @@
 # SoundSight
 
-> **See where sound happens.**
+> **SOUNDS REVEAL MORE.**
 
 **SoundSight is an accessibility and environmental-awareness platform that transforms important sounds into visual, spatial, haptic, and contextual information.**
 
@@ -8,18 +8,27 @@ Built for **HyperBloom Hacks 2026**.
 
 ---
 
+## Try SoundSight
+
+### [Launch SoundSight](https://soundsight-eight.vercel.app)
+
+The deployed web application includes the complete SoundSight interface and **Demo Mode**.
+
+For the most reliable walkthrough, select **Continue in Demo Mode**.
+
+**Live Mode** connects the browser microphone to the SoundSight Python AI audio engine when the backend service is available.
+
+---
+
 ## What is SoundSight?
 
-Sound carries more information than just *what happened*.
+Sound carries more information than simply **what happened**.
 
-A knock tells you someone may be at the door.  
-A voice tells you someone nearby may be speaking.  
-An appliance beep may need your attention.  
-A dog bark, alarm, or approaching vehicle can change how you respond to your surroundings.
+A knock can tell you someone may be at the door. A voice can tell you someone nearby is speaking. An appliance beep may need your attention. A dog bark, alarm, siren, or approaching vehicle can change how you respond to your surroundings.
 
 For Deaf and hard-of-hearing people, some or all of that environmental information may not be readily accessible.
 
-Most sound-recognition tools stop at:
+Many sound-recognition experiences stop at:
 
 > **"Doorbell detected."**
 
@@ -27,7 +36,7 @@ SoundSight asks a bigger question:
 
 > **What happened, where did it happen, and does the person need to know about it?**
 
-SoundSight uses AI-powered environmental sound recognition to transform audio into persistent visual information that can be displayed through a spatial map, alerts, history, and accessibility feedback.
+SoundSight uses AI-powered environmental sound recognition to transform audio into persistent visual information displayed through a spatial map, sound history, alerts, and accessibility feedback.
 
 The goal is not to replace someone's senses.
 
@@ -39,9 +48,9 @@ The goal is not to replace someone's senses.
 
 Sound is transient.
 
-If you don't perceive a sound when it happens, that information can disappear almost immediately.
+If you do not perceive a sound when it happens, that information can disappear almost immediately.
 
-But environmental sound often contains several pieces of information at once:
+Environmental sound often contains several pieces of information at once:
 
 - What happened?
 - When did it happen?
@@ -50,15 +59,15 @@ But environmental sound often contains several pieces of information at once:
 - Where might it have happened?
 - Is it important enough to interrupt the user?
 
-Traditional sound notifications often flatten all of this into a single label.
+Traditional sound notifications often flatten this information into a single label.
 
-SoundSight explores what happens when that information becomes a persistent, accessible representation of the environment.
+SoundSight explores what happens when environmental audio becomes a **persistent, accessible representation of the world around the user**.
 
 ---
 
 # The Solution
 
-SoundSight converts microphone audio into structured environmental events.
+SoundSight converts environmental audio into structured `SoundEvent` objects.
 
 ```text
 Microphone
@@ -73,7 +82,9 @@ Spatial / Acoustic Processing
     ↓
 SoundEvent
     ↓
-Visual Map • Recent Sounds • History • Alerts • Haptics
+Visual Map
+    ↓
+History • Alerts • Haptics
 ```
 
 Instead of displaying only:
@@ -91,23 +102,23 @@ Front
 Detected 3 seconds ago
 ```
 
-The result is a visual representation of environmental sound designed around **awareness rather than notifications alone**.
+The result is an accessibility experience designed around **environmental awareness rather than notifications alone**.
 
 ---
 
-# 🏔 Features
+# Features
 
-## 🎯 Live Sound Awareness
+## Live Sound Awareness
 
 SoundSight processes microphone audio and uses machine learning to recognize environmental sounds.
 
 Predictions are filtered, stabilized, and transformed into structured `SoundEvent` objects before reaching the interface.
 
-This prevents the UI from depending directly on raw model predictions.
+This means the user interface does not depend directly on noisy raw model predictions.
 
 ---
 
-## 🧭 Spatial Sound Map
+## Spatial Sound Map
 
 The central SoundSight experience is a radar-inspired visualization of sounds occurring around the user.
 
@@ -119,19 +130,19 @@ Events can communicate:
 - direction when supported
 - timestamp
 - priority
-- active/inactive state
+- active or inactive state
 
 Sound events appear as glacier-inspired topographic contours that visually represent activity around the user.
 
-> **Note:** The current mono microphone configuration cannot provide reliable left/right spatial localization. Mono input intentionally falls back to a Front/Center representation rather than fabricating directional information.
+> **Current hardware limitation:** The mono microphone configuration used during development cannot provide reliable live left/right localization. Mono input intentionally falls back to a Front/Center representation rather than fabricating directional information.
 
 ---
 
-## 🌊 Topographic Sound Visualization
+## Topographic Sound Visualization
 
 SoundSight uses luminous glacier-inspired contour waves to make detected sound events visually distinct.
 
-The visualization can respond to event properties such as:
+The visualization can respond to properties such as:
 
 - sound type
 - intensity
@@ -143,95 +154,118 @@ Older events visually fade as newer environmental information becomes more relev
 
 ---
 
-## 🚨 Alerts
+## Alerts
 
 Important sounds can be surfaced through dedicated alert experiences rather than disappearing into the general event stream.
 
-The architecture supports multimodal accessibility feedback including:
+SoundSight supports an accessibility-oriented alert architecture including:
 
 - visual alerts
 - interface emphasis
-- haptic feedback
-- accessibility-oriented event prioritization
+- event prioritization
+- haptic feedback on supported devices
 
-Haptic behavior requires physical-device validation before being treated as production-ready.
+Haptic behavior depends on the platform and hardware.
+
+Desktop web browsers should not be treated as guaranteed haptic devices.
 
 ---
 
-## 📜 Sound History
+## Sound History
 
-SoundSight maintains a persistent local history of detected environmental events.
+SoundSight maintains a persistent local history of environmental events.
 
 Users can review sounds after they occur instead of losing that information immediately.
 
-History supports functionality such as:
+History includes:
 
 - chronological event history
+- grouped repeated detections
 - search
 - event metadata
 - sound categories
 - confidence information
+- analytics
 - local persistence
-- clearing history
+- history controls
 
-Sound history stores **derived event metadata**, not raw microphone recordings.
+Sound History stores **derived event metadata**, not raw microphone recordings.
 
 ---
 
-## 💬 Conversation Mode
+## Demo Mode
 
-SoundSight also explores a second accessibility problem: nearby conversation.
+SoundSight includes a deterministic Demo Mode so the complete accessibility experience can be explored without waiting for specific sounds to occur naturally.
 
-Conversation Mode is designed to provide live speech transcription so a Deaf or hard-of-hearing user can read spoken conversation as it happens.
+Demo Mode can simulate events such as:
 
-Environmental sound recognition and conversation transcription are intentionally treated as separate modes:
+- Door Knock
+- Doorbell
+- Voice / Speech
+- Appliance Beep
+- Dog Bark
+- Vehicle activity
+- Alarm / Siren events
+
+Demo Mode uses the **same centralized `SoundEvent` pipeline** as live detections.
+
+```text
+Demo Event
+    ↓
+SoundEvent
+    ↓
+SoundSightContext
+    ↓
+Map • History • Alerts
+```
+
+This means Demo Mode and Live Mode do not require separate user interfaces.
+
+Demo events are explicitly presented as simulated and allow the complete SoundSight concept to be evaluated even when the live AI backend is unavailable.
+
+---
+
+## Conversation Mode
+
+SoundSight also explores another accessibility challenge: nearby conversation.
+
+Conversation Mode is intended to provide speech transcription so a Deaf or hard-of-hearing user can read spoken conversation.
+
+Environmental sound recognition and conversation transcription are intentionally treated as separate concepts.
 
 ```text
 Environmental Mode
-Microphone
-→ Sound Classification
-→ SoundEvent
-→ Map / Alerts / History
 
-
-Conversation Mode
 Microphone
-→ Speech Recognition
-→ TranscriptSegment
-→ Live Conversation UI
+    ↓
+Sound Classification
+    ↓
+SoundEvent
+    ↓
+Map • Alerts • History
 ```
 
-Conversation Mode is currently under active development and should not yet be considered production-ready.
+```text
+Conversation Mode
 
-Transcript information is intended to remain local and temporary rather than becoming permanent audio history.
+Microphone
+    ↓
+Speech Recognition
+    ↓
+TranscriptSegment
+    ↓
+Conversation UI
+```
 
----
-
-## 🧪 Demo Mode
-
-SoundSight includes deterministic demo scenarios so the accessibility experience can be explored without waiting for specific sounds to occur naturally.
-
-Example demo events include sounds such as:
-
-- door knock
-- doorbell
-- speech
-- appliance beep
-- dog bark
-- vehicle activity
-- alarm/siren events
-
-Demo Mode uses the **same centralized SoundEvent pipeline** as live detections.
-
-That means the UI does not need separate implementations for simulated and real events.
+Conversation Mode remains an experimental part of the prototype and should not be considered production-ready.
 
 ---
 
-# 🤖 AI / ML
+# AI / ML
 
 AI/ML is fundamental to SoundSight.
 
-The current environmental sound engine uses **YAMNet**, a pretrained environmental sound-classification model.
+The environmental sound engine uses **Google YAMNet**, a pretrained environmental audio classification model available through TensorFlow Hub.
 
 The inference pipeline is:
 
@@ -257,12 +291,13 @@ Event Aggregation
 SoundEvent
 ```
 
-Using a pretrained model allowed SoundSight to focus not only on recognizing sounds, but also on the accessibility layer surrounding those predictions.
+Using a pretrained model allowed SoundSight to focus not only on recognizing sounds, but also on building the accessibility system surrounding those predictions.
 
-SoundSight adds application logic around the model output including:
+SoundSight adds application logic around model output including:
 
 - confidence thresholds
 - temporal stabilization
+- transient-event handling
 - duplicate suppression
 - event aggregation
 - intensity calculation
@@ -271,56 +306,59 @@ SoundSight adds application logic around the model output including:
 - alerts
 - visual representation
 
-The ML model is therefore not an isolated feature. It is the source of the environmental information driving the application.
+The ML model is not an isolated feature.
+
+**It is the source of the environmental information driving the core application.**
 
 ---
 
-# 🧠 Why YAMNet?
+# Why YAMNet?
 
-YAMNet is an environmental audio classification model capable of identifying a broad range of sound categories.
+YAMNet is an environmental audio classification model trained using the AudioSet ontology.
 
-Instead of training a new sound classifier from scratch during the hackathon, SoundSight uses pretrained environmental-audio intelligence and focuses on transforming those predictions into an accessible experience.
-
-The classifier produces candidate sound classes and confidence scores.
-
-SoundSight then determines how those predictions become meaningful application events.
+Instead of training a new classifier from scratch during the hackathon, SoundSight uses pretrained environmental-audio intelligence and focuses on transforming model predictions into an accessible experience.
 
 ```text
-YAMNet prediction
-      ↓
-confidence threshold
-      ↓
-stable across multiple windows?
-      ↓
-event aggregation
-      ↓
-duplicate / cooldown handling
-      ↓
+YAMNet Prediction
+        ↓
+Confidence Threshold
+        ↓
+Stability / Transient Handling
+        ↓
+Event Aggregation
+        ↓
+Duplicate / Cooldown Handling
+        ↓
 SoundEvent
 ```
 
-This helps prevent every individual model prediction from immediately becoming a user-facing alert.
+This prevents every individual model prediction from immediately becoming a user-facing event.
+
+YAMNet supports a much larger vocabulary than SoundSight exposes. SoundSight intentionally maps a curated subset of relevant environmental sounds into its product experience.
+
+Recognition reliability depends on microphone quality, environment, volume, overlapping sounds, and model confidence.
 
 ---
 
-# 🧭 Spatial Audio Experimentation
+# Spatial Audio Experimentation
 
-SoundSight also experiments with sound localization using **GCC-PHAT / Time Difference of Arrival (TDOA)**.
+SoundSight also experiments with sound localization using **GCC-PHAT and Time Difference of Arrival (TDOA)**.
 
 With two synchronized microphone channels, a sound can arrive at each microphone at slightly different times.
 
 ```text
-               SOUND
-                 ↓
+                 SOUND
+                   ↓
 
-Mic A  ● ---------------- ●  Mic B
-          arrival delay
-                ↓
-            GCC-PHAT
-                ↓
-               TDOA
-                ↓
-        Direction Estimate
+Mic A  ● ---------------------- ●  Mic B
+
+              arrival delay
+                   ↓
+               GCC-PHAT
+                   ↓
+                  TDOA
+                   ↓
+           Direction Estimate
 ```
 
 With suitable synchronized hardware, this can support coarse:
@@ -333,23 +371,23 @@ RIGHT
 
 localization.
 
-### Current limitation
+## Current Localization Limitation
 
-The hardware used for current testing exposes mono microphone input.
+The hardware used for current live testing exposes mono microphone input.
 
-Therefore SoundSight does **not** claim true 360° localization from the current hardware.
+SoundSight therefore does **not** claim true 360-degree localization from the current development hardware.
 
 Mono detections intentionally use a Front/Center fallback.
 
-The radar interface represents the broader spatial interaction concept while the localization engine remains hardware-dependent.
+Synthetic GCC-PHAT tests validate timing-based left/center/right localization logic, while live spatial accuracy remains dependent on appropriate synchronized multi-channel microphone hardware.
 
 ---
 
-# 🏗 Architecture
+# Architecture
 
-SoundSight separates audio processing from presentation.
+SoundSight separates audio intelligence from presentation.
 
-## Current Client-Microphone Architecture
+## Live Architecture
 
 ```text
 ┌───────────────────────────────────┐
@@ -360,7 +398,7 @@ SoundSight separates audio processing from presentation.
 │            Microphone             │
 └────────────────┬──────────────────┘
                  │
-                 │ PCM audio
+                 │ PCM Audio
                  ▼
 ┌───────────────────────────────────┐
 │       Bidirectional WebSocket     │
@@ -393,92 +431,81 @@ SoundSight separates audio processing from presentation.
                  │
        ┌─────────┼─────────┬─────────┐
        ▼         ▼         ▼         ▼
-    Live Map   Recent    History   Alerts
+      Map      Recent    History   Alerts
 ```
 
-The Python engine also retains its original direct-microphone mode for development and testing.
+The Python engine also retains direct-microphone functionality for local development and testing.
 
 ---
 
-# 🔄 Centralized SoundEvent Data Flow
+# Centralized SoundEvent Flow
 
-All environmental detections ultimately flow through a shared event architecture.
+All environmental detections ultimately flow through the same event architecture.
 
 ```text
-        Demo Events
-             │
-             │
-             ▼
-      ┌───────────────┐
-      │  SoundEvent   │
-      └───────┬───────┘
-              │
-              ▼
-     SoundSightContext
-              ▲
-              │
-      ┌───────┴───────┐
-      │   Live AI     │
-      │   Detection   │
-      └───────────────┘
-              │
-              ▼
-
-     Shared Application State
-
-       ┌──────┼──────┬──────┐
-       ▼      ▼      ▼      ▼
-
-      Map   Recent  History Alerts
+            Demo Events
+                 │
+                 ▼
+           ┌───────────┐
+           │SoundEvent │
+           └─────┬─────┘
+                 │
+                 ▼
+         SoundSightContext
+                 ▲
+                 │
+           ┌─────┴─────┐
+           │  Live AI  │
+           │ Detection │
+           └───────────┘
+                 │
+                 ▼
+       Shared Application State
+        ┌────────┼────────┬────────┐
+        ▼        ▼        ▼        ▼
+       Map     Recent   History   Alerts
 ```
 
 This is an important architectural decision.
 
-**Demo Mode and Live Mode do not require separate UI implementations.**
+**Demo Mode and Live Mode use the same application event model.**
 
-Both produce the same fundamental application object:
+Both ultimately produce:
 
-`SoundEvent`.
+```text
+SoundEvent
+```
 
 ---
 
-# 📦 SoundEvent Schema
+# SoundEvent Schema
 
-Defined in:
+The core event model is defined in:
 
 ```text
 src/types/sound.ts
 ```
 
-A SoundEvent contains the normalized information the application needs to represent a detected sound.
+A `SoundEvent` contains normalized information the application needs to represent a detected sound.
 
 ```typescript
 export interface SoundEvent {
   id: string;
-
   soundType: SoundType;
   label: string;
-
   direction: SoundDirection;
-
   confidence: number;
   intensity: number;
-
   priority: SoundPriority;
-
   timestamp: number;
   isActive: boolean;
 
-  // Optional spatial/acoustic metadata
   angle?: number;
   decibels?: number;
   distanceMeters?: number;
-
   category?: SoundCategory;
-
   iconName?: string;
   description?: string;
-
   waveContours?: number[];
 }
 ```
@@ -499,17 +526,15 @@ Example:
 }
 ```
 
-Acoustic fields should be interpreted according to the available hardware.
+Acoustic fields should always be interpreted according to available hardware.
 
-For example, uncalibrated microphone amplitude should not be interpreted as laboratory-grade sound pressure level measurements.
+Uncalibrated microphone amplitude should **not** be interpreted as laboratory-grade dB SPL or dBA measurements.
 
 ---
 
-# 🎙 Client Microphone → Remote AI
+# Browser Microphone to Remote AI
 
-The web version of SoundSight can capture microphone audio directly from the browser.
-
-The browser pipeline uses:
+The web architecture can capture microphone audio directly from the browser.
 
 ```text
 getUserMedia
@@ -527,9 +552,9 @@ WebSocket
 
 The WebSocket connection is bidirectional.
 
-### Client → AI engine
+## Client to AI Engine
 
-The client first sends an audio configuration message:
+The client sends an audio configuration message:
 
 ```json
 {
@@ -542,47 +567,50 @@ The client first sends an audio configuration message:
 
 Microphone samples then travel as binary WebSocket frames.
 
-### AI engine → Client
+## AI Engine to Client
 
-The Python engine processes the stream and returns the existing `SoundEvent` JSON.
+The Python engine processes the stream and returns normalized `SoundEvent` JSON.
 
 ```text
-SoundSight
-     │
-     │ binary PCM
-     ▼
-Python / YAMNet
-     │
-     │ SoundEvent JSON
-     ▼
+Browser
+   │
+   │ PCM
+   ▼
+Python Audio Engine
+   │
+   ▼
+YAMNet
+   │
+   ▼
+SoundEvent JSON
+   │
+   ▼
 SoundSight
 ```
 
-Raw microphone audio is kept only in bounded working memory during processing and is not intentionally written to SoundSight History or AsyncStorage.
+Raw microphone audio is used for processing and is not intended to become part of Sound History.
 
 ---
 
-# 🔒 Privacy
+# Privacy
 
 Environmental audio can contain sensitive information.
 
-SoundSight is designed around a privacy-conscious architecture.
+SoundSight is designed around a privacy-conscious prototype architecture.
 
 Current principles include:
 
-- raw microphone audio is not intentionally persisted
-- raw audio is not added to Sound History
+- raw microphone audio is not intentionally added to Sound History
 - environmental History contains derived event metadata
 - users can clear stored History
-- transcript information is intended to remain local and temporary
 - environmental events and conversation transcripts remain separate data types
-- raw microphone recordings are not intended to become part of the user's permanent profile
+- raw microphone recordings are not intended to become permanent user history
 
-A future production version could move additional inference directly onto the device to further minimize audio transmission.
+A future production version could move more inference directly onto the device to further reduce audio transmission and improve offline availability.
 
 ---
 
-# 🛠 Tech Stack
+# Tech Stack
 
 ## Frontend
 
@@ -592,31 +620,34 @@ A future production version could move additional inference directly onto the de
 - TypeScript
 - NativeWind
 - React Native SVG
+- Web Audio API
+- AudioWorklet
 
-## AI / Audio
+## AI and Audio
 
 - Python
 - TensorFlow
 - TensorFlow Hub
-- YAMNet
+- Google YAMNet
 - NumPy
 - WebSockets
 - GCC-PHAT / TDOA
-- Web Audio API
-- AudioWorklet
 
 ## Application Data
 
-- Local application storage
-- Persistent SoundEvent history
-- Local settings/preferences
-- Temporary transcript architecture
+- local application storage
+- persistent `SoundEvent` history
+- local settings and preferences
+- Demo Mode event state
+
+## Deployment
+
+- **Vercel** for the SoundSight web frontend
+- **Render** for the Python/WebSocket AI backend
 
 ---
 
-# 📁 Project Structure
-
-A simplified view of the repository:
+# Project Structure
 
 ```text
 Soundsight/
@@ -628,14 +659,11 @@ Soundsight/
 │   ├── audio_sources.py
 │   ├── websocket_server.py
 │   ├── config.py
+│   ├── requirements.txt
 │   └── tests/
 │
 ├── src/
 │   ├── app/
-│   │   ├── microphone.tsx
-│   │   └── (app)/
-│   │       └── (tabs)/
-│   │
 │   ├── components/
 │   │   ├── SoundRadarCanvas.tsx
 │   │   ├── SoundActivityGraph.tsx
@@ -656,28 +684,42 @@ Soundsight/
 │       └── sound.ts
 │
 ├── assets/
+├── docs/
 ├── app.json
 ├── package.json
+├── vercel.json
 └── README.md
 ```
 
 ---
 
-# 🚀 Running SoundSight Locally
+# Running SoundSight Locally
 
 ## Prerequisites
 
-Install:
+You will need:
 
-- Node.js 18+
+- Node.js
 - pnpm
 - Python 3
+- Git
 - a modern browser
-- a microphone
+- microphone access for Live Mode
 
 ---
 
-## 1. Install Frontend Dependencies
+## 1. Clone the Repository
+
+```bash
+git clone YOUR_GITHUB_REPOSITORY_URL
+cd Soundsight
+```
+
+Replace `YOUR_GITHUB_REPOSITORY_URL` with the repository's GitHub URL.
+
+---
+
+## 2. Install Frontend Dependencies
 
 From the project root:
 
@@ -687,21 +729,43 @@ pnpm install
 
 ---
 
-## 2. Configure Python
+## 3. Start the Frontend
 
-Enter the audio engine:
+```bash
+pnpm exec expo start
+```
+
+For web:
+
+```bash
+pnpm exec expo start --web
+```
+
+Expo can also allow you to press:
+
+```text
+w
+```
+
+to open the web version.
+
+---
+
+# Running the Python AI Engine
+
+Enter the audio engine directory:
 
 ```bash
 cd audio-engine
 ```
 
-Create a virtual environment if one does not already exist:
+Create a virtual environment:
 
 ```bash
 python3 -m venv .venv
 ```
 
-Activate it:
+Activate it on macOS or Linux:
 
 ```bash
 source .venv/bin/activate
@@ -715,14 +779,15 @@ pip install -r requirements.txt
 
 ---
 
-# 🌐 Run With the Browser Microphone
+# Running Live AI Locally
 
-This is the current client-microphone development architecture.
+You need two terminals.
 
-### Terminal 1 — AI Engine
+## Terminal 1: Start the AI Engine
+
+From `audio-engine`:
 
 ```bash
-cd audio-engine
 source .venv/bin/activate
 
 python main.py \
@@ -732,24 +797,28 @@ python main.py \
   --port 8765
 ```
 
-The Python process should start without opening the Mac microphone.
+The local WebSocket endpoint is:
+
+```text
+ws://127.0.0.1:8765/events
+```
 
 ---
 
-### Terminal 2 — SoundSight Web
+## Terminal 2: Start SoundSight
 
-From the project root:
+From the repository root:
 
 ```bash
 EXPO_PUBLIC_AUDIO_ENGINE_WS=ws://127.0.0.1:8765/events \
 pnpm exec expo start --web
 ```
 
-Open the application in your browser.
+Open SoundSight and select **Live Mode**.
 
-Choose **Live Mode** and grant microphone permission.
+Grant microphone permission when prompted.
 
-The complete development pipeline is:
+The development pipeline becomes:
 
 ```text
 Browser Microphone
@@ -771,9 +840,9 @@ SoundSight UI
 
 ---
 
-# 🎤 Python Microphone Fallback
+# Direct Python Microphone Mode
 
-The original server-side microphone architecture remains available for development.
+The Python engine can also use a microphone attached directly to the computer running Python.
 
 ```bash
 cd audio-engine
@@ -784,7 +853,7 @@ python main.py \
   --source microphone
 ```
 
-A specific device can also be selected when required:
+A specific input device can be selected when required:
 
 ```bash
 python main.py \
@@ -798,9 +867,255 @@ Use multi-channel localization only with verified synchronized microphone hardwa
 
 ---
 
-# 📱 Mobile Packaging
+# WebSocket Configuration
 
-SoundSight is structured as an Expo/React Native application so the same product can target:
+SoundSight uses:
+
+```text
+EXPO_PUBLIC_AUDIO_ENGINE_WS
+```
+
+to configure the AI engine WebSocket endpoint.
+
+## Local Development
+
+```text
+ws://127.0.0.1:8765/events
+```
+
+## Production
+
+```text
+wss://YOUR_RENDER_SERVICE.onrender.com/events
+```
+
+Production websites served over HTTPS should use `wss://` rather than insecure `ws://`.
+
+For example:
+
+```bash
+EXPO_PUBLIC_AUDIO_ENGINE_WS=wss://YOUR_RENDER_SERVICE.onrender.com/events
+```
+
+Replace the placeholder with the actual Render service URL after the backend is deployed.
+
+---
+
+# Deploying the Web App with Vercel
+
+SoundSight's public frontend is deployed with Vercel.
+
+## Production Web App
+
+**[Launch SoundSight](https://soundsight-eight.vercel.app)**
+
+Build the web application:
+
+```bash
+pnpm exec expo export -p web
+```
+
+Expo generates:
+
+```text
+dist/
+```
+
+Install the Vercel CLI if needed:
+
+```bash
+npm install -g vercel
+```
+
+Authenticate:
+
+```bash
+vercel login
+```
+
+Deploy a preview:
+
+```bash
+vercel
+```
+
+Deploy production:
+
+```bash
+vercel --prod
+```
+
+Vercel hosts the **SoundSight frontend**.
+
+The Python/TensorFlow audio engine is deployed separately.
+
+---
+
+# Deploying the AI Backend with Render
+
+The Python AI/WebSocket backend can be deployed using a Render Web Service.
+
+## Render Configuration
+
+Create:
+
+```text
+New
+→ Web Service
+```
+
+Connect the SoundSight GitHub repository.
+
+Configure:
+
+```text
+Name:
+soundsight-audio
+
+Language:
+Python 3
+
+Branch:
+main
+
+Root Directory:
+audio-engine
+
+Build Command:
+pip install -r requirements.txt
+
+Start Command:
+python main.py
+
+Compute:
+Free
+```
+
+For the hackathon prototype, the free service is sufficient to begin testing.
+
+---
+
+## Render Port Configuration
+
+Render provides a `PORT` environment variable to web services.
+
+The SoundSight server should:
+
+- bind to `0.0.0.0`
+- use Render's `PORT` when provided
+- fall back to `8765` locally
+
+Conceptually:
+
+```python
+import os
+
+port = int(os.environ.get("PORT", "8765"))
+```
+
+Local development therefore continues to use:
+
+```text
+8765
+```
+
+while Render can assign the production port.
+
+---
+
+## Render WebSocket URL
+
+After deployment, Render provides a public hostname similar to:
+
+```text
+https://soundsight-audio.onrender.com
+```
+
+The corresponding secure WebSocket endpoint would be:
+
+```text
+wss://soundsight-audio.onrender.com/events
+```
+
+Replace the example hostname with the actual Render service hostname.
+
+Then configure the frontend:
+
+```text
+EXPO_PUBLIC_AUDIO_ENGINE_WS=wss://YOUR_RENDER_SERVICE.onrender.com/events
+```
+
+Because Expo public environment variables are included in the web build, rebuild and redeploy the Vercel frontend after changing the production WebSocket URL.
+
+---
+
+## Render Free Service Behavior
+
+The Render backend may be inactive when nobody is using SoundSight.
+
+When the service needs to start again, the frontend should clearly communicate connection state instead of appearing broken.
+
+Useful states include:
+
+```text
+Starting SoundSight AI
+Connecting
+Listening
+AI Offline
+```
+
+Demo Mode remains available independently of the live AI service.
+
+---
+
+# Production Architecture
+
+The intended hosted architecture is:
+
+```text
+┌─────────────────────────────────┐
+│             Vercel              │
+│                                 │
+│       SoundSight Web App        │
+└──────────────┬──────────────────┘
+               │
+               │ Browser Microphone
+               ▼
+          AudioWorklet
+               │
+               │ PCM Audio
+               ▼
+              wss://
+               │
+               ▼
+┌─────────────────────────────────┐
+│             Render              │
+│                                 │
+│       Python Audio Engine       │
+│               ↓                 │
+│             YAMNet              │
+│               ↓                 │
+│       Event Stabilization       │
+│               ↓                 │
+│           SoundEvent            │
+└──────────────┬──────────────────┘
+               │
+               │ JSON
+               ▼
+┌─────────────────────────────────┐
+│        SoundSight Frontend      │
+│                                 │
+│ Map • History • Alerts • Detail │
+└─────────────────────────────────┘
+```
+
+This separates **presentation** from **audio inference** while preserving the shared `SoundEvent` contract.
+
+---
+
+# Mobile Architecture
+
+SoundSight is structured as an Expo / React Native application so the same product can target:
 
 ```text
 Web
@@ -810,119 +1125,108 @@ Android
 
 The current browser microphone implementation uses Web APIs.
 
-Native microphone streaming is isolated behind:
+Native raw-PCM microphone streaming requires a compatible native capture implementation and physical-device testing.
 
-```text
-src/services/audio/nativeAudioStream.ts
-```
-
-A production iOS/Android implementation requires a compatible native raw-PCM capture module and an Expo Development Build/EAS Build.
-
-The project already accounts for microphone permissions including:
-
-- iOS microphone usage description
-- Android `RECORD_AUDIO`
-
-Python is **not intended to be embedded inside the mobile application** in the current architecture.
+Python is not intended to run inside the mobile application in the current architecture.
 
 ---
 
-# 🌐 Production Architecture
+# Haptics
 
-A hosted web/mobile configuration can use:
+On supported native/mobile devices, SoundSight can provide haptic feedback for detected or important sounds when enabled.
 
-```text
-SoundSight Web / Mobile
-          │
-          │ microphone audio
-          ▼
-       wss://
-          │
-          ▼
-Hosted Python AI Engine
-          │
-          │ SoundEvent
-          ▼
-     SoundSight UI
-```
-
-The backend URL is configured through:
+On web, physical vibration depends on browser and device support.
 
 ```text
-EXPO_PUBLIC_AUDIO_ENGINE_WS
+Supported Mobile Device
+        ↓
+Physical Haptic / Vibration
+
+Unsupported Browser or Device
+        ↓
+Visual Feedback
 ```
 
-Local development:
-
-```text
-ws://127.0.0.1:8765/events
-```
-
-Production should use a secure endpoint:
-
-```text
-wss://<audio-engine-host>/events
-```
-
-This prevents production hostnames from being hard-coded into the application.
+Desktop browsers should not be treated as guaranteed haptic hardware.
 
 ---
 
-# 🧪 Validation
+# Testing
 
-The SoundSight pipeline includes automated testing for core audio and transport behavior.
+The SoundSight pipeline includes automated validation for core audio and transport behavior.
 
-Current validation includes:
+Testing covers areas including:
 
 - audio configuration validation
 - PCM conversion
 - sample-rate validation
 - malformed audio handling
-- unconfigured binary frame handling
 - WebSocket binary ingestion
 - disconnect cleanup
 - bounded audio handling
-- SoundEvent transport
+- `SoundEvent` transport
 - TypeScript validation
 - Expo web export
 
-Latest development validation:
+## Python Tests
 
-```text
-Python tests:       29 / 29 PASS
-TypeScript:         PASS
-Lint:               PASS
-Expo Web Export:    PASS
-git diff --check:   PASS
+From the repository root:
+
+```bash
+audio-engine/.venv/bin/python -m unittest discover -s audio-engine/tests -v
+```
+
+## TypeScript
+
+```bash
+pnpm exec tsc --noEmit
+```
+
+## Lint
+
+```bash
+pnpm lint
+```
+
+## Web Export
+
+```bash
+pnpm exec expo export -p web
+```
+
+## Git Validation
+
+```bash
+git diff --check
 ```
 
 Physical-device testing remains necessary for native microphone and haptic behavior.
 
 ---
 
-# ⚠️ Current Limitations
+# Current Prototype Limitations
 
 SoundSight is a hackathon prototype.
 
-It should **not be treated as a safety-critical emergency alerting system**.
+It should **not be treated as a certified safety-critical or emergency-alerting system**.
 
 Current limitations include:
 
-- sound-classification accuracy depends on recording conditions and model confidence
+- classification accuracy depends on acoustic conditions and model confidence
 - acoustically similar sounds may occasionally be confused
 - true directional localization requires appropriate synchronized microphone hardware
 - mono microphone input cannot reliably determine left/right direction
 - sound-level measurements are not calibrated SPL measurements unless explicitly calibrated
-- native iOS/Android raw-PCM microphone streaming still requires physical-device integration
-- haptic behavior requires physical-device validation
-- Conversation Mode remains under development
-- the current AI architecture requires connectivity between the client and Python inference engine
+- native iOS/Android raw-PCM streaming requires additional physical-device integration
+- web haptic support varies by browser and hardware
+- Conversation Mode remains experimental
+- Live Mode requires connectivity to the Python inference engine
 
 These limitations are intentionally exposed rather than hidden behind simulated precision.
 
 ---
 
-# 🎨 Design System
+# Design System
 
 SoundSight's visual language is inspired by glaciers, topographic maps, sound waves, and environmental sensing.
 
@@ -931,61 +1235,68 @@ SoundSight's visual language is inspired by glaciers, topographic maps, sound wa
 | **Navy Dark** | `#032A43` | Primary background |
 | **Ocean Deep** | `#0B466D` | Elevated surfaces |
 | **Glacier Blue** | `#247CA8` | Structural elements |
-| **Cyan Ice** | `#55C2E8` | Primary accent / radar |
+| **Cyan Ice** | `#55C2E8` | Primary accent and radar |
 | **Ice Pale** | `#C6E8F5` | Secondary text |
 | **Snow White** | `#F7FBFD` | Primary typography |
 | **Signal Coral** | `#FF5A5F` | Critical alert emphasis |
 
-The topographic contour system is intended to visually connect:
+The topographic contour system visually connects:
 
 ```text
-sound
-+
-space
-+
-environment
-+
-accessibility
+Sound
+  +
+Space
+  +
+Environment
+  +
+Accessibility
 ```
 
 into one recognizable visual identity.
 
 ---
 
-# 🤖 AI Tools Disclosure
+# AI Tools Disclosure
 
 AI-assisted development tools were used during the creation of SoundSight.
 
-They assisted with areas including:
+They assisted with:
 
 - product ideation
 - architecture planning
 - UI/UX iteration
+- debugging
 - code refactoring
 - documentation
 - technical research
 
+Development assistance included:
+
+- ChatGPT
+- OpenAI Codex
+- GitHub Copilot
+
 AI-generated suggestions and code were reviewed and integrated into the project as part of the development process.
 
-The application's runtime environmental sound intelligence uses the pretrained **YAMNet** environmental sound-classification model.
+The application's **runtime environmental sound intelligence** uses Google's pretrained **YAMNet** model.
+
+ChatGPT, Codex, and GitHub Copilot were development tools. They are **not** the runtime sound classifier.
 
 ---
 
-# 🌱 Built for HyperBloom Hacks 2026
+# Built for HyperBloom Hacks 2026
 
-SoundSight was built for **HyperBloom Hacks**, an AI/ML hackathon focused on intelligent solutions to real-world problems.
+SoundSight was built for **HyperBloom Hacks 2026**, an AI/ML hackathon focused on intelligent solutions to real-world problems.
 
-The project aligns with the hackathon's judging categories:
+## Impact and Relevance
 
-### Impact & Relevance — 25%
+SoundSight explores access to environmental information for Deaf and hard-of-hearing users.
 
-SoundSight addresses access to environmental information for Deaf and hard-of-hearing users.
+## Innovation and Creativity
 
-### Innovation & Creativity — 20%
+Rather than treating sound accessibility as a collection of notifications, SoundSight explores a spatial and persistent representation of the surrounding acoustic environment.
 
-Rather than treating sound accessibility as a collection of notifications, SoundSight explores a spatial, persistent representation of the surrounding acoustic environment.
-
-### Technical Implementation — 25%
+## Technical Implementation
 
 The project combines:
 
@@ -1000,21 +1311,21 @@ The project combines:
 - persistent application state
 - cross-platform React Native UI
 
-### AI/ML Integration — 20%
+## AI / ML Integration
 
 Machine-learning sound recognition is fundamental to the application.
 
-Without environmental audio classification, SoundSight cannot construct the SoundEvents that power its core experience.
+Without environmental audio classification, SoundSight cannot construct the `SoundEvent` objects that power its core experience.
 
-### Presentation & Demo — 10%
+## Presentation and Demo
 
 The Live Map transforms model predictions into an immediately visible representation, while Demo Mode provides deterministic scenarios for demonstrating the accessibility concept.
 
 ---
 
-# 🔭 Future Direction
+# Future Work
 
-SoundSight is ultimately intended to become more local, private, and multimodal.
+SoundSight is ultimately intended to become more local, private, spatial, and multimodal.
 
 Future work includes:
 
@@ -1022,16 +1333,20 @@ Future work includes:
 - on-device speech transcription
 - production-ready Conversation Mode
 - improved multi-microphone localization
+- browser-to-cloud audio infrastructure improvements
+- expanded curated sound recognition
+- improved transient-event detection
 - personalized sound categories
 - user-selectable alert priorities
-- richer haptic patterns
+- richer DeafBlind haptic patterns
 - wearable integrations
 - improved false-positive suppression
 - calibrated acoustic measurements
 - accessibility personalization
 - offline inference
+- optional spoken spatial context for blind and low-vision users
 
-A future on-device architecture could remove the remote inference requirement entirely:
+A future on-device architecture could reduce or remove the remote inference requirement:
 
 ```text
 Phone Microphone
@@ -1043,11 +1358,11 @@ SoundEvent
 SoundSight
 ```
 
-This would improve privacy, offline availability, and latency.
+This could improve privacy, latency, and offline availability.
 
 ---
 
-# 💙 Why SoundSight?
+# Why SoundSight?
 
 Sound accessibility should be about more than displaying the name of a sound.
 
@@ -1059,8 +1374,14 @@ SoundSight explores how that information can be transformed rather than lost.
 
 ---
 
-## SOUNDS REVEAL MORE.
+# SOUNDS REVEAL MORE.
 
-### Listen. Understand. Orient. Belong.
+### See where sound happens.
 
-**Same sounds. A brighter tomorrow.**
+### Same sounds. A brighter tomorrow.
+
+### [Launch SoundSight](https://soundsight-eight.vercel.app)
+
+---
+
+**SoundSight — HyperBloom Hacks 2026**
