@@ -34,6 +34,25 @@ class Detection:
     sound_level_dbfs: Optional[float] = None
 
 
+@dataclass(frozen=True)
+class RawPrediction:
+    label: str
+    confidence: float
+
+
+def top_yamnet_predictions(
+    scores: np.ndarray, class_names: Sequence[str], limit: int = 5
+) -> list[RawPrediction]:
+    """Return highest-scoring raw YAMNet classes for diagnostics."""
+    values = np.asarray(scores, dtype=np.float32).reshape(-1)
+    if len(values) != len(class_names):
+        raise ValueError("YAMNet scores and class-name vocabulary have incompatible shapes.")
+    if limit < 1:
+        raise ValueError("Prediction limit must be at least one.")
+    indexes = np.argsort(values)[::-1][:limit]
+    return [RawPrediction(class_names[index], float(values[index])) for index in indexes]
+
+
 class ConfidenceThreshold:
     """Thread-safe live classifier threshold shared with the control server."""
 
@@ -97,8 +116,9 @@ def measured_dbfs(samples: np.ndarray) -> Optional[float]:
 class YamNetClassifier:
     """Lazy-loading wrapper around google/yamnet/1 from TensorFlow Hub."""
 
-    def __init__(self, model_url: str = YAMNET_MODEL_URL) -> None:
+    def __init__(self, model_url: str = YAMNET_MODEL_URL, debug_predictions: bool = False) -> None:
         self.model_url = model_url
+        self.debug_predictions = debug_predictions
         self._model = None
         self._class_names: Optional[Sequence[str]] = None
 
@@ -139,6 +159,10 @@ class YamNetClassifier:
             raise ClassificationError(f"YAMNet inference failed: {exc}") from exc
         # Preserve model certainty: aggregate temporal model outputs, never substitute loudness.
         aggregate_scores = np.max(frame_scores, axis=0)
+        if self.debug_predictions:
+            print("\nYAMNet top 5:")
+            for prediction in top_yamnet_predictions(aggregate_scores, self.class_names):
+                print(f"  {prediction.label}: {prediction.confidence:.3f}")
         return scores_to_mapped_classes(aggregate_scores, self.class_names)
 
 
@@ -151,6 +175,9 @@ class StableDetectionFilter:
         self._ema: Dict[str, float] = {}
         self._streaks: Dict[str, int] = {}
         self._last_emitted: Dict[str, float] = {}
+        self._transient_support: Dict[str, list[float]] = {}
+
+    _TRANSIENT_SOUND_TYPES = frozenset({"door_knock", "doorbell", "glass_breaking"})
 
     def update(
         self,
@@ -172,24 +199,49 @@ class StableDetectionFilter:
             self._streaks[sound_type] = self._streaks.get(sound_type, 0) + 1 if smoothed >= self.threshold.get() else 0
 
             last_emitted = self._last_emitted.get(sound_type, float("-inf"))
+            threshold = self.threshold.get()
+            transient_support = 0
+            if prediction is not None and sound_type in self._TRANSIENT_SOUND_TYPES:
+                recent = [
+                    seen for seen in self._transient_support.get(sound_type, [])
+                    if timestamp - seen <= self.config.transient_support_window_seconds
+                ]
+                if raw_confidence >= threshold:
+                    recent.append(timestamp)
+                self._transient_support[sound_type] = recent[-2:]
+                strong_threshold = max(threshold, self.config.transient_high_confidence)
+                if raw_confidence >= strong_threshold:
+                    transient_support = self.config.event_required_supporting_frames
+                elif len(recent) >= 2:
+                    transient_support = 2
             if (
                 prediction is not None
-                and self._streaks[sound_type] >= self.config.stable_windows
+                and (
+                    self._streaks[sound_type] >= self.config.stable_windows
+                    or transient_support > 0
+                )
                 and timestamp - last_emitted >= self.config.detection_cooldown_seconds
             ):
+                emitted_confidence = raw_confidence if transient_support else smoothed
+                supporting_frames = (
+                    max(self.config.event_required_supporting_frames, transient_support)
+                    if transient_support
+                    else self.config.stable_windows
+                )
                 detections.append(
                     Detection(
                         label=prediction.label,
                         sound_type=sound_type,
                         raw_label=prediction.raw_label,
-                        confidence=float(np.clip(smoothed, 0.0, 1.0)),
+                        confidence=float(np.clip(emitted_confidence, 0.0, 1.0)),
                         intensity=float(np.clip(intensity, 0.0, 1.0)),
-                        supporting_frames=self.config.stable_windows,
+                        supporting_frames=supporting_frames,
                         sound_level_dbfs=sound_level_dbfs,
                     )
                 )
                 self._last_emitted[sound_type] = timestamp
                 self._streaks[sound_type] = 0
+                self._transient_support.pop(sound_type, None)
         return sorted(detections, key=lambda item: item.confidence, reverse=True)
 
 

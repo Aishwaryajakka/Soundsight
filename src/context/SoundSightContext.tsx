@@ -28,7 +28,7 @@ import {
 import { acceptUniqueEventId, hapticActionForPriority } from '@/services/eventAlertPolicy';
 import { TranscriptStorage, normalizeTranscripts } from '@/services/transcriptStorage';
 import type { TranscriptSegment, TranscriptionStatus } from '@/types/transcript';
-import { createDemoSoundEvents, createDemoTranscripts, isDemoRecordId } from '@/services/demoData';
+import { createDemoTranscripts, createGuidedDemoSequence, isDemoRecordId } from '@/services/demoData';
 import { clientAudioStream } from '@/services/audio/audioStream';
 import {
   DEFAULT_PERSISTENT_SOUND_SETTINGS,
@@ -386,6 +386,8 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [clientMicrophoneEnabled, setClientMicrophoneEnabled] = useState(false);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const demoTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const demoSequenceGeneration = useRef(0);
   const showFeedback = useCallback((message: string) => {
     if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
     setFeedbackMessage(message);
@@ -420,7 +422,33 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const clearTranscripts = useCallback(() => { if (!transcriptsRestored.current) transcriptsClearedDuringRestore.current = true; setTranscripts([]); void transcriptStorage.clear(); showFeedback('Conversation transcripts cleared.'); }, [showFeedback]);
 
+  const cancelDemoSequence = useCallback(() => {
+    demoSequenceGeneration.current += 1;
+    demoTimers.current.forEach(clearTimeout);
+    demoTimers.current = [];
+  }, []);
+
+  const resetHandledDemoIds = useCallback(() => {
+    handledEventOrder.current = handledEventOrder.current.filter((id) => !isDemoRecordId(id));
+    handledEventIds.current = new Set(handledEventOrder.current);
+  }, []);
+
+  const startGuidedDemoSequence = useCallback(() => {
+    cancelDemoSequence();
+    resetHandledDemoIds();
+    const generation = demoSequenceGeneration.current;
+    for (const step of createGuidedDemoSequence()) {
+      const timer = setTimeout(() => {
+        if (demoSequenceGeneration.current !== generation) return;
+        if (step.event) soundEventService.emit({ ...step.event, timestamp: Date.now() });
+        if (step.guidance) showFeedback(step.guidance);
+      }, step.delayMs);
+      demoTimers.current.push(timer);
+    }
+  }, [cancelDemoSequence, resetHandledDemoIds, showFeedback]);
+
   const clearDemoData = useCallback(() => {
+    cancelDemoSequence();
     setModeState('live');
     setIsLiveListening(true);
     setActiveSounds((current) => current.filter((event) => !isDemoRecordId(event.id)));
@@ -429,25 +457,26 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setSelectedSound((current) => current && isDemoRecordId(current.id) ? null : current);
     liveSoundEventService.start();
     showFeedback('Demo data cleared. Live mode restored.');
-  }, [showFeedback]);
+  }, [cancelDemoSequence, showFeedback]);
 
   const loadDemoData = useCallback(() => {
-    const demoEvents = createDemoSoundEvents();
     const demoTranscripts = createDemoTranscripts();
     setModeState('demo');
     setIsLiveListening(false);
     liveSoundEventService.stop();
     void clientAudioStream.stop();
-    setSoundHistory((current) => mergeSoundHistory(demoEvents, current));
-    setActiveSounds((current) => [
-      ...demoEvents.filter((event) => event.isActive),
-      ...current.filter((event) => !isDemoRecordId(event.id)),
-    ].slice(0, 4));
-    setTranscripts((current) => normalizeTranscripts([...current, ...demoTranscripts]));
-    showFeedback('Demo data loaded.');
-  }, [showFeedback]);
+    setSoundHistory((current) => current.filter((event) => !isDemoRecordId(event.id)));
+    setActiveSounds((current) => current.filter((event) => !isDemoRecordId(event.id)));
+    setTranscripts((current) => normalizeTranscripts([
+      ...current.filter((segment) => !isDemoRecordId(segment.id)),
+      ...demoTranscripts,
+    ]));
+    startGuidedDemoSequence();
+    showFeedback('Demo Mode\nSimulated sounds will appear so you can explore SoundSight.');
+  }, [showFeedback, startGuidedDemoSequence]);
 
   const enterLiveMode = useCallback(() => {
+    cancelDemoSequence();
     setModeState('live');
     setActiveSounds((current) => current.filter((event) => !isDemoRecordId(event.id)));
     setSoundHistory((current) => current.filter((event) => !isDemoRecordId(event.id)));
@@ -456,9 +485,10 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     liveSoundEventService.setConversationMode(false);
     liveSoundEventService.start();
     showFeedback('Live mode selected.');
-  }, [showFeedback]);
+  }, [cancelDemoSequence, showFeedback]);
 
   const enterConversationMode = useCallback(() => {
+    cancelDemoSequence();
     setModeState('conversation');
     setActiveSounds((current) => current.filter((event) => !isDemoRecordId(event.id)));
     setSoundHistory((current) => current.filter((event) => !isDemoRecordId(event.id)));
@@ -468,7 +498,12 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     liveSoundEventService.start();
     liveSoundEventService.setConversationMode(true, false);
     showFeedback('Conversation mode started.');
-  }, [showFeedback]);
+  }, [cancelDemoSequence, showFeedback]);
+
+  useEffect(() => () => {
+    cancelDemoSequence();
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+  }, [cancelDemoSequence]);
 
   const setMode = useCallback((nextMode: 'live' | 'demo' | 'conversation') => {
     if (nextMode === 'demo') loadDemoData();

@@ -27,20 +27,23 @@ class MappedClass:
 SOUNDSIGHT_MAPPINGS: Tuple[MappingDefinition, ...] = (
     MappingDefinition("door_knock", "Door Knock", ("Knock",)),
     MappingDefinition("doorbell", "Doorbell", ("Doorbell", "Ding-dong")),
-    MappingDefinition("dog_bark", "Dog Bark", ("Bark",)),
-    MappingDefinition("voice", "Voice", ("Speech", "Conversation", "Narration, monologue")),
-    MappingDefinition("singing", "Singing", ("Singing",)),
+    MappingDefinition("dog_bark", "Dog Bark", ("Bark", "Dog")),
+    MappingDefinition("voice", "Voice", ("Speech", "Child speech, kid speaking", "Conversation", "Narration, monologue")),
+    # Do not include generic Music: instrumental audio must not become Singing.
+    MappingDefinition("singing", "Singing", ("Singing", "Choir", "Child singing", "Synthetic singing", "Vocal music")),
     MappingDefinition("clapping", "Clapping", ("Clapping",)),
     MappingDefinition("whistling", "Whistling", ("Whistling",)),
     MappingDefinition("phone_ringing", "Phone Ringing", ("Telephone bell ringing", "Ringtone")),
     MappingDefinition("running_water", "Running Water", ("Water", "Water tap, faucet")),
     MappingDefinition("vacuum", "Vacuum", ("Vacuum cleaner",)),
-    MappingDefinition("alarm", "Alarm", ("Alarm", "Alarm clock", "Smoke detector, smoke alarm", "Fire alarm")),
+    MappingDefinition("alarm", "Alarm", ("Alarm", "Alarm clock", "Car alarm", "Smoke detector, smoke alarm", "Fire alarm")),
     MappingDefinition("appliance_beep", "Appliance Beep", ("Beep, bleep", "Buzzer", "Microwave oven")),
     MappingDefinition("baby_crying", "Baby Crying", ("Baby cry, infant cry",)),
     MappingDefinition("car_horn", "Car Horn", ("Vehicle horn, car horn, honking",)),
-    MappingDefinition("glass_breaking", "Glass Breaking", ("Breaking", "Shatter"), ("Glass",)),
-    MappingDefinition("siren", "Siren", ("Siren", "Civil defense siren")),
+    # YAMNet's Shatter leaf class specifically covers glass-like shattering;
+    # generic Breaking remains excluded because it is too broad.
+    MappingDefinition("glass_breaking", "Glass Breaking", ("Shatter",)),
+    MappingDefinition("siren", "Siren", ("Siren", "Civil defense siren", "Police car (siren)", "Ambulance (siren)", "Fire engine, fire truck (siren)")),
     MappingDefinition("footsteps", "Footsteps", ("Walk, footsteps",)),
     MappingDefinition("vehicle", "Car / Vehicle", ("Vehicle", "Car")),
 )

@@ -5,6 +5,65 @@ import type { TranscriptSegment } from '@/types/transcript';
 export const DEMO_ID_PREFIX = 'demo-seed-';
 export const isDemoRecordId = (id: string) => id.startsWith(DEMO_ID_PREFIX);
 
+export interface GuidedDemoStep {
+  delayMs: number;
+  event?: SoundEvent;
+  guidance?: string;
+}
+
+function guidedEvent(
+  id: string,
+  soundType: SoundType,
+  direction: SoundDirection,
+  confidence: number,
+): SoundEvent {
+  const definition = supportedSound(soundType);
+  if (!definition) throw new Error(`Missing guided demo catalog entry: ${soundType}`);
+  const angle = direction === 'right' ? 90 : direction === 'back' ? 180 : direction === 'left' ? 270 : 0;
+  return {
+    id: `${DEMO_ID_PREFIX}guided-${id}`,
+    soundType,
+    label: definition.label,
+    direction,
+    confidence,
+    intensity: Math.min(0.92, 0.42 + confidence * 0.48),
+    priority: definition.priority,
+    timestamp: 0,
+    isActive: true,
+    angle,
+    category: definition.category,
+    iconName: definition.iconName,
+    description: `Simulated ${definition.label.toLowerCase()} for the guided SoundSight demo.`,
+    soundLevelDbfs: -22,
+    loudness: 'moderate',
+    timeAgo: 'Just now',
+  };
+}
+
+/** Events and coaching are deliberately separate steps so guidance stays sparse. */
+export function createGuidedDemoSequence(): GuidedDemoStep[] {
+  return [
+    {
+      delayMs: 3_000,
+      event: guidedEvent('door-knock', 'door_knock', 'right', 0.94),
+      guidance: 'Door Knock detected on your right.\nTap the sound marker to view details.',
+    },
+    { delayMs: 8_000, event: guidedEvent('doorbell', 'doorbell', 'front', 0.91) },
+    {
+      delayMs: 12_000,
+      event: guidedEvent('dog-bark', 'dog_bark', 'left', 0.86),
+      guidance: 'Open History to see what SoundSight has detected.',
+    },
+    { delayMs: 18_000, event: guidedEvent('appliance-beep', 'appliance_beep', 'front', 0.82) },
+    {
+      delayMs: 23_000,
+      event: guidedEvent('alarm', 'alarm', 'right', 0.92),
+      guidance: 'Important sounds also appear in Alerts.',
+    },
+    { delayMs: 30_000, guidance: 'Explore Settings to adjust contours, confidence, and haptics.' },
+  ];
+}
+
 // Day offset plus a fraction of that day keeps the judge dataset reliably
 // split across Today and Yesterday regardless of what time the demo is opened.
 const EVENT_DEFINITIONS: readonly [SoundType, number, SoundDirection, 0 | 1, number][] = [

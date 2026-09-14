@@ -42,7 +42,7 @@ function RootAppContent() {
       </Stack>
       <StrobeOverlay active={isStrobeActive} onDismiss={dismissStrobe} />
       {feedbackMessage && (
-        <View pointerEvents="none" className="absolute inset-x-4 bottom-24 z-50 items-center">
+        <View pointerEvents="none" accessibilityLiveRegion="polite" className="absolute inset-x-4 bottom-24 z-50 items-center">
           <View className="max-w-[360px] rounded-full border border-[#55C2E8]/30 bg-[#073653] px-5 py-3">
             <Text className="text-center text-sm font-semibold text-[#E8F8FD]">{feedbackMessage}</Text>
           </View>

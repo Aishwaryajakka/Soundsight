@@ -22,6 +22,9 @@ class AudioConfig:
     smoothing_alpha: float = 0.45
     stable_windows: int = 2
     detection_cooldown_seconds: float = 2.0
+    transient_high_confidence: float = 0.60
+    transient_support_window_seconds: float = 1.20
+    debug_predictions: bool = False
     intensity_reference_rms: float = 0.1
     # No physical spacing can be inferred from an OS device index. Measure the
     # selected stereo array and pass --mic-spacing before enabling localization.
@@ -71,6 +74,10 @@ class AudioConfig:
             raise ValueError("Stable windows must be at least one.")
         if self.detection_cooldown_seconds < 0:
             raise ValueError("Detection cooldown cannot be negative.")
+        if not 0 <= self.transient_high_confidence <= 1:
+            raise ValueError("Transient high confidence must be between zero and one.")
+        if self.transient_support_window_seconds <= 0:
+            raise ValueError("Transient support window must be greater than zero.")
         if self.intensity_reference_rms <= 0:
             raise ValueError("Intensity reference RMS must be greater than zero.")
         if self.microphone_spacing_m is not None and self.microphone_spacing_m <= 0:

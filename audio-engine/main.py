@@ -38,7 +38,7 @@ def _classifier_components(config: AudioConfig, threshold=None):
     from classifier import StableDetectionFilter, YamNetClassifier
 
     print("Loading official YAMNet model from TensorFlow Hub...", flush=True)
-    classifier = YamNetClassifier()
+    classifier = YamNetClassifier(debug_predictions=config.debug_predictions)
     classifier.load()
     print("YAMNet ready.", flush=True)
     return classifier, StableDetectionFilter(config, threshold=threshold)
@@ -228,6 +228,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output-interval", type=float, default=0.5, help="meter interval in seconds")
     parser.add_argument("--min-confidence", type=float, default=0.35, help="stable detection threshold")
     parser.add_argument("--stable-windows", type=int, default=2, help="consecutive smoothed windows required")
+    parser.add_argument("--debug-predictions", action="store_true", help="print the top five raw YAMNet classes per inference window")
     parser.add_argument("--mic-spacing", type=float, metavar="METERS", help="measured microphone spacing")
     parser.add_argument("--speed-of-sound", type=float, default=343.0, metavar="M_S")
     parser.add_argument("--center-dead-zone-ms", type=float, default=0.08, metavar="MS")
@@ -265,6 +266,7 @@ def main() -> int:
             output_interval=args.output_interval,
             min_confidence=args.min_confidence,
             stable_windows=args.stable_windows,
+            debug_predictions=args.debug_predictions,
             microphone_spacing_m=args.mic_spacing,
             speed_of_sound_m_s=args.speed_of_sound,
             center_dead_zone_s=args.center_dead_zone_ms / 1000.0,
