@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
+body,
+#root {
+  min-height: 100%;
+  background: #032a43;
+}
+
 @layer base {
   :root {
     --background: 203 92% 10%; /* #021E32 SoundSight deep navy */

@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Compass, Clock, Bell, Sliders } from 'lucide-react-native';
+import { MapPin, Clock, Bell, Settings } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
@@ -19,9 +19,9 @@ export default function TabsLayout() {
           paddingTop: 4,
         },
         tabBarActiveTintColor: '#55C2E8',
-        tabBarInactiveTintColor: '#6F93A8',
+        tabBarInactiveTintColor: '#8BAABD',
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: '600',
           lineHeight: 12,
           marginTop: 1,
@@ -38,28 +38,28 @@ export default function TabsLayout() {
         name="home"
         options={{
           title: 'Map',
-          tabBarIcon: ({ color }) => <Compass size={20} color={color} />,
+          tabBarIcon: ({ color }) => <MapPin size={22} color={color} strokeWidth={2} />,
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
           title: 'History',
-          tabBarIcon: ({ color }) => <Clock size={20} color={color} />,
+          tabBarIcon: ({ color }) => <Clock size={22} color={color} strokeWidth={2} />,
         }}
       />
       <Tabs.Screen
         name="alerts"
         options={{
           title: 'Alerts',
-          tabBarIcon: ({ color }) => <Bell size={20} color={color} />,
+          tabBarIcon: ({ color }) => <Bell size={22} color={color} strokeWidth={2} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color }) => <Sliders size={20} color={color} />,
+          tabBarIcon: ({ color }) => <Settings size={22} color={color} strokeWidth={2} />,
         }}
       />
     </Tabs>

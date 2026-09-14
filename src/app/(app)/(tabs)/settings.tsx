@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronRight, Info } from 'lucide-react-native';
 import { useRouter, type RelativePathString } from 'expo-router';
 import { useSoundSight } from '@/context/SoundSightContext';
-import { GlacierWave } from '@/components/branding/GlacierWave';
+import { ScreenArtwork } from '@/components/ScreenArtwork';
 
 const Toggle = ({ enabled, onPress, label }: { enabled: boolean; onPress: () => void; label: string }) => (
   <Pressable accessibilityRole="switch" accessibilityLabel={label} accessibilityState={{ checked: enabled }} onPress={onPress} className={`h-7 w-12 rounded-full p-1 ${enabled ? 'bg-[#55C2E8]' : 'bg-[#6F93A8]'}`}>
@@ -17,7 +17,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView className="flex-1 overflow-hidden bg-[#021E32]" edges={['top', 'left', 'right']}>
-      <View pointerEvents="none" className="absolute inset-x-0 bottom-0"><GlacierWave height={138} opacity={0.46} /></View>
+      <ScreenArtwork source={require('../../../../assets/background-settings.png')} opacity={0.72} />
       <ScrollView className="z-10 flex-1" contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
         <View className="h-14 justify-center"><Text className="text-[28px] font-bold tracking-tight text-[#F7FBFD]">Settings</Text></View>
 

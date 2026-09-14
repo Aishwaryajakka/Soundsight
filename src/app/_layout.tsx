@@ -2,6 +2,7 @@ import React from 'react';
 import * as Sentry from '@sentry/react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { Platform, View } from 'react-native';
 import { PortalHost } from '@rn-primitives/portal';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SoundSightProvider, useSoundSight } from '@/context/SoundSightContext';
@@ -34,9 +35,20 @@ function RootAppContent() {
 const RootLayout: React.FC = () => {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#021E32' }}>
-      <SoundSightProvider>
-        <RootAppContent />
-      </SoundSightProvider>
+      <View
+        style={{
+          flex: 1,
+          width: '100%',
+          maxWidth: Platform.OS === 'web' ? 430 : undefined,
+          alignSelf: 'center',
+          overflow: 'hidden',
+          backgroundColor: '#021E32',
+        }}
+      >
+        <SoundSightProvider>
+          <RootAppContent />
+        </SoundSightProvider>
+      </View>
     </GestureHandlerRootView>
   );
 };

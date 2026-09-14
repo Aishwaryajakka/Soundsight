@@ -1,40 +1,117 @@
-import { useEffect } from 'react';
-import { Image, Text, useWindowDimensions, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image, ImageBackground, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useRouter, type RelativePathString } from 'expo-router';
-import { GlacierWave } from '@/components/branding/GlacierWave';
 
-export default function SplashScreen() {
+const backgroundArtwork = require('../../assets/splash-background-final.png');
+const brandArtwork = require('../../assets/SoundSightLogo.png');
+
+export default function LandingScreen() {
   const router = useRouter();
-  const { height: screenHeight } = useWindowDimensions();
-  const compact = screenHeight < 720;
-
-  useEffect(() => {
-    const timer = setTimeout(() => router.replace('/microphone' as RelativePathString), 1800);
-    return () => clearTimeout(timer);
-  }, [router]);
+  const { height, width } = useWindowDimensions();
+  const canvasHeight = Platform.OS === 'web' ? Math.min(height, 900) : height;
+  const scale = Math.min(width / 390, canvasHeight / 844);
+  const brandingSize = Math.round(280 * Math.max(0.9, Math.min(scale, 1.08)));
 
   return (
-    <SafeAreaView className="flex-1 overflow-hidden bg-[#021E32]">
-      <View pointerEvents="none" className="absolute inset-x-0 top-0 h-[58%] bg-[#D7EAF4]" />
-      <View pointerEvents="none" className="absolute inset-x-0" style={{ top: screenHeight * 0.24, height: screenHeight * 0.34 }}>
-        <Image source={require('../../assets/splash-glacier.png')} resizeMode="stretch" style={{ width: '100%', height: '100%' }} accessibilityIgnoresInvertColors />
-      </View>
-      <View pointerEvents="none" className="absolute inset-x-0" style={{ top: screenHeight * 0.4 }}><GlacierWave height={compact ? 190 : 235} opacity={0.98} /></View>
-      <View pointerEvents="none" className="absolute inset-x-0 bottom-0 bg-[#021E32]" style={{ top: screenHeight * 0.56 }} />
-      <View pointerEvents="none" className="absolute inset-x-0 bottom-[8%]"><GlacierWave height={compact ? 220 : 285} opacity={0.54} /></View>
+    <View style={[styles.root, { maxHeight: canvasHeight, marginTop: Platform.OS === 'web' ? Math.max(0, (height - canvasHeight) / 2) : 0 }]}>
+      <ImageBackground
+        source={backgroundArtwork}
+        resizeMode="cover"
+        style={StyleSheet.absoluteFillObject}
+        imageStyle={styles.backgroundImage}
+        accessibilityIgnoresInvertColors
+      />
 
-      <View className="z-10 items-center" style={{ paddingTop: compact ? 0 : 4 }}>
-        <Image source={require('../../assets/SoundSightLogo.png')} resizeMode="contain" style={{ width: compact ? 218 : 238, height: compact ? 218 : 238 }} accessibilityLabel="SoundSight — Sounds reveal more" accessibilityIgnoresInvertColors />
+      <View pointerEvents="none" style={[styles.branding, { top: canvasHeight * 0.075 }]}>
+        <Image
+          source={brandArtwork}
+          resizeMode="contain"
+          style={{ width: brandingSize, height: brandingSize }}
+          accessibilityLabel="SoundSight — Sounds reveal more"
+          accessibilityIgnoresInvertColors
+        />
       </View>
 
-      <View className="absolute inset-x-0 bottom-0 z-10 px-7" style={{ height: 190 }}>
-        <Text className="absolute left-7 text-[14px] leading-[22px] tracking-[4.5px] text-[#D8EDF6]" style={{ bottom: 62 }}>A MORE{`\n`}ACCESSIBLE{`\n`}WORLD{`\n`}AROUND YOU</Text>
-        <View className="absolute inset-x-0 items-center" style={{ bottom: compact ? 10 : 16 }}>
-          <View className="h-px w-[122px] bg-[#285B78]"><View className="h-[2px] w-8 bg-[#48C5ED]" /></View>
-          <Text className="mt-3 text-[11px] text-[#A9C6D8]">Loading...</Text>
+      <Text
+        pointerEvents="none"
+        style={[
+          styles.mission,
+          {
+            left: Math.max(32, width * 0.082),
+            bottom: canvasHeight * 0.145,
+          },
+        ]}
+      >
+        A MORE{`\n`}ACCESSIBLE{`\n`}WORLD{`\n`}AROUND YOU
+      </Text>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Enter SoundSight"
+        onPress={() => router.push('/microphone' as RelativePathString)}
+        style={[styles.loadingControl, { bottom: canvasHeight * 0.045 }]}
+      >
+        <View style={styles.progressTrack}>
+          <View style={styles.progressActive} />
         </View>
-      </View>
-    </SafeAreaView>
+        <Text style={styles.loadingText}>Loading...</Text>
+      </Pressable>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    position: 'relative',
+    flex: 1,
+    width: '100%',
+    alignSelf: 'center',
+    overflow: 'hidden',
+    backgroundColor: '#032A43',
+  },
+  backgroundImage: {
+    width: '100%',
+    height: '100%',
+  },
+  branding: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  mission: {
+    position: 'absolute',
+    color: '#F7FBFD',
+    fontSize: 16,
+    fontWeight: '400',
+    letterSpacing: 4,
+    lineHeight: 24,
+  },
+  loadingControl: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    minHeight: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressTrack: {
+    width: 176,
+    height: 3,
+    overflow: 'hidden',
+    borderRadius: 2,
+    backgroundColor: 'rgba(4, 51, 77, 0.78)',
+  },
+  progressActive: {
+    width: '36%',
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#00B9F2',
+  },
+  loadingText: {
+    marginTop: 14,
+    color: '#8BAAC4',
+    fontSize: 12,
+    fontWeight: '400',
+    letterSpacing: 0.4,
+  },
+});

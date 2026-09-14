@@ -1,8 +1,10 @@
 export const SOUND_SETTINGS_STORAGE_KEY = 'soundsight.settings.v1';
 
 export type MapFadeDuration = '5s' | '10s' | '20s';
+export type DetectionSensitivity = 'Low' | 'Medium' | 'High';
 
 export interface PersistentSoundSettings {
+  detectionSensitivity: DetectionSensitivity;
   keepEventsVisibleDuration: MapFadeDuration;
   showConfidence: boolean;
   showSoundIntensity: boolean;
@@ -10,11 +12,16 @@ export interface PersistentSoundSettings {
 }
 
 export const DEFAULT_PERSISTENT_SOUND_SETTINGS: PersistentSoundSettings = {
+  detectionSensitivity: 'Medium',
   keepEventsVisibleDuration: '10s',
   showConfidence: true,
   showSoundIntensity: true,
   hapticAlertsEnabled: true,
 };
+
+export function mapFadeDurationMs(duration: MapFadeDuration): number {
+  return Number.parseInt(duration, 10) * 1000;
+}
 
 interface SettingsKeyValueStorage {
   getItem(key: string): Promise<string | null>;
@@ -28,7 +35,12 @@ export function normalizePersistentSoundSettings(value: unknown): PersistentSoun
 
   const candidate = value as Partial<PersistentSoundSettings>;
   const duration = candidate.keepEventsVisibleDuration;
+  const sensitivity = candidate.detectionSensitivity;
   return {
+    detectionSensitivity:
+      sensitivity === 'Low' || sensitivity === 'Medium' || sensitivity === 'High'
+        ? sensitivity
+        : DEFAULT_PERSISTENT_SOUND_SETTINGS.detectionSensitivity,
     keepEventsVisibleDuration:
       duration === '5s' || duration === '10s' || duration === '20s'
         ? duration

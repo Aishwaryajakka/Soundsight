@@ -75,6 +75,28 @@ class WebSocketServerTests(unittest.IsolatedAsyncioTestCase):
                 await client.recv()
             self.assertEqual(raised.exception.code, 1008)
 
+    async def test_valid_threshold_control_and_acknowledgment(self) -> None:
+        async with websockets.connect(self.url) as client:
+            await client.recv()  # initial event
+            await client.send(json.dumps({"type": "config", "minConfidence": 0.25}))
+            response = json.loads(await client.recv())
+            self.assertEqual(response, {"type": "config_ack", "minConfidence": 0.25})
+            self.assertEqual(self.server.confidence_threshold.get(), 0.25)
+
+    async def test_malformed_and_out_of_range_controls_are_rejected(self) -> None:
+        async with websockets.connect(self.url) as client:
+            await client.recv()  # initial event
+            for message in (
+                "not-json",
+                json.dumps({"type": "config", "minConfidence": 2}),
+                json.dumps({"type": "config", "minConfidence": 0.4}),
+                json.dumps({"type": "config", "minConfidence": 0.35, "extra": True}),
+            ):
+                await client.send(message)
+                response = json.loads(await client.recv())
+                self.assertEqual(response, {"type": "config_error", "code": "invalid_config"})
+            self.assertEqual(self.server.confidence_threshold.get(), self.config.min_confidence)
+
 
 if __name__ == "__main__":
     unittest.main()

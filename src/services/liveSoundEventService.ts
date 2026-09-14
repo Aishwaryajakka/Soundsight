@@ -7,6 +7,17 @@ type ConnectionStateListener = (state: LiveSoundConnectionState) => void;
 type WebSocketFactory = (url: string) => WebSocket;
 
 const MAX_REMEMBERED_EVENT_IDS = 256;
+const SENSITIVITY_THRESHOLDS = {
+  Low: 0.5,
+  Medium: 0.35,
+  High: 0.25,
+} as const;
+
+export type LiveDetectionSensitivity = keyof typeof SENSITIVITY_THRESHOLDS;
+
+export function thresholdForSensitivity(sensitivity: LiveDetectionSensitivity): number {
+  return SENSITIVITY_THRESHOLDS[sensitivity];
+}
 
 export const parseSoundEventMessage = parseSoundEvent;
 
@@ -20,6 +31,7 @@ export class LiveSoundEventService {
   private readonly stateListeners = new Set<ConnectionStateListener>();
   private readonly seenEventIds = new Set<string>();
   private readonly seenEventOrder: string[] = [];
+  private detectionSensitivity: LiveDetectionSensitivity = 'Medium';
 
   constructor(
     private readonly url: string | undefined,
@@ -34,6 +46,12 @@ export class LiveSoundEventService {
     this.stateListeners.add(listener);
     listener(this.state);
     return () => this.stateListeners.delete(listener);
+  }
+
+  /** Save the desired live-engine threshold and apply it on this or the next connection. */
+  public setDetectionSensitivity(sensitivity: LiveDetectionSensitivity): boolean {
+    this.detectionSensitivity = sensitivity;
+    return this.sendSensitivityConfig();
   }
 
   public start(): void {
@@ -81,9 +99,11 @@ export class LiveSoundEventService {
       if (generation !== this.connectionGeneration) return;
       this.reconnectAttempt = 0;
       this.setState('connected');
+      this.sendSensitivityConfig();
     };
     socket.onmessage = (event) => {
       if (generation !== this.connectionGeneration) return;
+      if (this.isControlResponse(event.data)) return;
       const soundEvent = parseSoundEvent(event.data);
       if (!soundEvent) {
         console.warn('Ignored malformed SoundSight audio-engine message.');
@@ -108,6 +128,25 @@ export class LiveSoundEventService {
         this.scheduleReconnect(generation);
       }
     };
+  }
+
+  private sendSensitivityConfig(): boolean {
+    if (!this.socket || this.socket.readyState !== 1) return false;
+    this.socket.send(JSON.stringify({
+      type: 'config',
+      minConfidence: thresholdForSensitivity(this.detectionSensitivity),
+    }));
+    return true;
+  }
+
+  private isControlResponse(data: unknown): boolean {
+    if (typeof data !== 'string') return false;
+    try {
+      const message = JSON.parse(data) as { type?: unknown };
+      return message?.type === 'config_ack' || message?.type === 'config_error';
+    } catch {
+      return false;
+    }
   }
 
   private scheduleReconnect(generation: number): void {

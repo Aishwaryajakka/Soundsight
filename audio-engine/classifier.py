@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import os
 import time
+import threading
 from dataclasses import dataclass
 from fractions import Fraction
 from typing import Dict, Iterable, Iterator, Optional, Sequence
@@ -30,6 +31,25 @@ class Detection:
     confidence: float
     intensity: float
     supporting_frames: int = 1
+
+
+class ConfidenceThreshold:
+    """Thread-safe live classifier threshold shared with the control server."""
+
+    def __init__(self, value: float) -> None:
+        self._lock = threading.Lock()
+        self._value = 0.0
+        self.set(value)
+
+    def get(self) -> float:
+        with self._lock:
+            return self._value
+
+    def set(self, value: float) -> None:
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 <= value <= 1:
+            raise ValueError("Minimum confidence must be a number between zero and one.")
+        with self._lock:
+            self._value = float(value)
 
 
 def classification_mono(samples: np.ndarray) -> np.ndarray:
@@ -113,8 +133,9 @@ class YamNetClassifier:
 class StableDetectionFilter:
     """EMA smoothing plus consecutive-window gating and per-class cooldown."""
 
-    def __init__(self, config: AudioConfig) -> None:
+    def __init__(self, config: AudioConfig, threshold: Optional[ConfidenceThreshold] = None) -> None:
         self.config = config
+        self.threshold = threshold or ConfidenceThreshold(config.min_confidence)
         self._ema: Dict[str, float] = {}
         self._streaks: Dict[str, int] = {}
         self._last_emitted: Dict[str, float] = {}
@@ -135,7 +156,7 @@ class StableDetectionFilter:
             previous = self._ema.get(sound_type, raw_confidence)
             smoothed = self.config.smoothing_alpha * raw_confidence + (1 - self.config.smoothing_alpha) * previous
             self._ema[sound_type] = smoothed
-            self._streaks[sound_type] = self._streaks.get(sound_type, 0) + 1 if smoothed >= self.config.min_confidence else 0
+            self._streaks[sound_type] = self._streaks.get(sound_type, 0) + 1 if smoothed >= self.threshold.get() else 0
 
             last_emitted = self._last_emitted.get(sound_type, float("-inf"))
             if (

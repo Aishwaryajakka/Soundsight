@@ -3,7 +3,7 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AudioLines, Check, Eye, Settings, Vibrate, Volume2, X } from 'lucide-react-native';
 import { useSoundSight } from '@/context/SoundSightContext';
-import { GlacierWave } from '@/components/branding/GlacierWave';
+import { ScreenArtwork } from '@/components/ScreenArtwork';
 import { SoundDetailModal } from '@/components/SoundDetailModal';
 import { SoundIcon } from '@/components/SoundIcon';
 import { shouldDisplayAlert } from '@/services/eventAlertPolicy';
@@ -27,7 +27,8 @@ export default function AlertsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#021E32]" edges={['top', 'left', 'right']}>
+    <SafeAreaView className="flex-1 overflow-hidden bg-[#021E32]" edges={['top', 'left', 'right']}>
+      <ScreenArtwork source={require('../../../../assets/background-alerts.png')} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
         <View className="h-14 flex-row items-center justify-between">
           <Text className="text-[28px] font-bold tracking-tight text-[#F7FBFD]">Alerts</Text>
@@ -71,9 +72,6 @@ export default function AlertsScreen() {
         </View>
 
         <View className="relative -mx-4 mt-2 h-[350px] overflow-hidden">
-          <View className="absolute inset-x-0 top-0">
-            <GlacierWave height={205} opacity={0.92} />
-          </View>
           <View className="absolute inset-x-0 bottom-3 items-center px-10">
             <AudioLines size={31} color="#55C2E8" strokeWidth={2.2} />
             <Text className="mt-3 text-[18px] font-semibold text-[#55C2E8]">Stay Aware</Text>

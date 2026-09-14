@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import threading
 from dataclasses import dataclass, field
 from typing import Optional, Set
@@ -12,7 +13,7 @@ import websockets
 from websockets.exceptions import ConnectionClosed
 from websockets.server import WebSocketServer, WebSocketServerProtocol
 
-from classifier import Detection
+from classifier import ConfidenceThreshold, Detection
 from config import AudioConfig
 from event_tracker import EventTracker, SoundEvent, validate_sound_event
 from localization import center_fallback
@@ -27,12 +28,20 @@ class _Client:
 class SoundEventWebSocketServer:
     """Broadcast one validated JSON SoundEvent per WebSocket message."""
 
-    def __init__(self, config: AudioConfig, initial_event: Optional[SoundEvent] = None) -> None:
+    ALLOWED_CONFIDENCE_THRESHOLDS = frozenset((0.25, 0.35, 0.50))
+
+    def __init__(
+        self,
+        config: AudioConfig,
+        initial_event: Optional[SoundEvent] = None,
+        confidence_threshold: Optional[ConfidenceThreshold] = None,
+    ) -> None:
         config.validate()
         if initial_event is not None:
             validate_sound_event(initial_event)
         self.config = config
         self.initial_event = initial_event
+        self.confidence_threshold = confidence_threshold or ConfidenceThreshold(config.min_confidence)
         self._clients: Set[_Client] = set()
         self._server: Optional[WebSocketServer] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
@@ -99,7 +108,8 @@ class SoundEventWebSocketServer:
             await self._enqueue(client, self._serialize(self.initial_event))
         sender = asyncio.create_task(self._sender(client))
         try:
-            await websocket.wait_closed()
+            async for message in websocket:
+                await self._handle_control_message(client, message)
         finally:
             sender.cancel()
             await asyncio.gather(sender, return_exceptions=True)
@@ -107,6 +117,30 @@ class SoundEventWebSocketServer:
             if not self._clients:
                 self._client_connected.clear()
             print(f"WebSocket client disconnected ({self.client_count} total): {websocket.remote_address}")
+
+    async def _handle_control_message(self, client: _Client, message: object) -> None:
+        error = {"type": "config_error", "code": "invalid_config"}
+        try:
+            payload = json.loads(message) if isinstance(message, str) else None
+            if not isinstance(payload, dict) or set(payload) != {"type", "minConfidence"}:
+                raise ValueError
+            value = payload["minConfidence"]
+            if (
+                payload["type"] != "config"
+                or isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or float(value) not in self.ALLOWED_CONFIDENCE_THRESHOLDS
+            ):
+                raise ValueError
+            self.confidence_threshold.set(float(value))
+            response = {
+                "type": "config_ack",
+                "minConfidence": self.confidence_threshold.get(),
+            }
+        except (ValueError, TypeError, json.JSONDecodeError):
+            response = error
+        await self._enqueue(client, json.dumps(response, separators=(",", ":")))
 
     async def _sender(self, client: _Client) -> None:
         try:
@@ -174,7 +208,12 @@ def build_test_event(config: AudioConfig) -> SoundEvent:
 async def serve_engine(config: AudioConfig, *, test_event_only: bool = False) -> None:
     """Run transport plus either the real engine worker or deterministic test mode."""
     initial_event = build_test_event(config) if test_event_only else None
-    server = SoundEventWebSocketServer(config, initial_event=initial_event)
+    confidence_threshold = ConfidenceThreshold(config.min_confidence)
+    server = SoundEventWebSocketServer(
+        config,
+        initial_event=initial_event,
+        confidence_threshold=confidence_threshold,
+    )
     await server.start()
     print(f"SoundSight WebSocket server listening at {server.url}")
     if config.websocket_host == "0.0.0.0":
@@ -202,6 +241,7 @@ async def serve_engine(config: AudioConfig, *, test_event_only: bool = False) ->
             on_event=server.publish_threadsafe,
             stop_event=stop_event,
             print_events=True,
+            confidence_threshold=confidence_threshold,
         )
 
     task = asyncio.create_task(asyncio.to_thread(engine_worker))

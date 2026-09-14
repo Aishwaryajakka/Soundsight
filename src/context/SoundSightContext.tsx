@@ -28,6 +28,7 @@ import {
 import { acceptUniqueEventId, hapticActionForPriority } from '@/services/eventAlertPolicy';
 import {
   DEFAULT_PERSISTENT_SOUND_SETTINGS,
+  mapFadeDurationMs,
   SoundSettingsStorage,
 } from '@/services/soundSettingsStorage';
 
@@ -126,7 +127,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [lastTriggeredSoundId, setLastTriggeredSoundId] = useState<string | null>('event-door-knock');
 
   // Persistent Configuration States
-  const [detectionSensitivity, setDetectionSensitivity] = useState<'Low' | 'Medium' | 'High'>('Medium');
+  const [detectionSensitivity, setDetectionSensitivity] = useState<'Low' | 'Medium' | 'High'>(DEFAULT_PERSISTENT_SOUND_SETTINGS.detectionSensitivity);
   const [showConfidence, setShowConfidence] = useState<boolean>(DEFAULT_PERSISTENT_SOUND_SETTINGS.showConfidence);
   const [showSoundIntensity, setShowSoundIntensity] = useState<boolean>(DEFAULT_PERSISTENT_SOUND_SETTINGS.showSoundIntensity);
   const [keepEventsVisibleDuration, setKeepEventsVisibleDuration] = useState<'5s' | '10s' | '20s'>(DEFAULT_PERSISTENT_SOUND_SETTINGS.keepEventsVisibleDuration);
@@ -356,6 +357,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     void soundSettingsStorage.load().then((savedSettings) => {
       if (cancelled) return;
       setKeepEventsVisibleDuration(savedSettings.keepEventsVisibleDuration);
+      setDetectionSensitivity(savedSettings.detectionSensitivity);
       setShowConfidence(savedSettings.showConfidence);
       setShowSoundIntensity(savedSettings.showSoundIntensity);
       setHapticAlertsEnabled(savedSettings.hapticAlertsEnabled);
@@ -369,12 +371,19 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     if (!settingsRestored.current) return;
     void soundSettingsStorage.save({
+      detectionSensitivity,
       keepEventsVisibleDuration,
       showConfidence,
       showSoundIntensity,
       hapticAlertsEnabled,
     });
-  }, [keepEventsVisibleDuration, showConfidence, showSoundIntensity, hapticAlertsEnabled]);
+  }, [detectionSensitivity, keepEventsVisibleDuration, showConfidence, showSoundIntensity, hapticAlertsEnabled]);
+
+  useEffect(() => {
+    // This stores the desired value in the existing socket service even while
+    // offline. The service applies it immediately when connected and on every reconnect.
+    liveSoundEventService.setDetectionSensitivity(detectionSensitivity);
+  }, [detectionSensitivity]);
 
   // Restore once without allowing the initial sample state to overwrite disk.
   // Events arriving during the async read are merged afterward instead of lost.
@@ -518,7 +527,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // One shared ticker updates labels and expires map visuals without touching History or Alerts.
   useEffect(() => {
-    const visibleDurationMs = Number.parseInt(keepEventsVisibleDuration, 10) * 1000;
+    const visibleDurationMs = mapFadeDurationMs(keepEventsVisibleDuration);
     const timer = setInterval(() => {
       const now = Date.now();
       setActiveSounds((prev) =>

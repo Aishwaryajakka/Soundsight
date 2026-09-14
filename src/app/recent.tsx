@@ -3,9 +3,10 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronRight } from 'lucide-react-native';
 import { AppHeader } from '@/components/AppHeader';
-import { GlacierWave } from '@/components/branding/GlacierWave';
+import { ScreenArtwork } from '@/components/ScreenArtwork';
 import { SoundDetailModal } from '@/components/SoundDetailModal';
 import { SoundIcon } from '@/components/SoundIcon';
+import { StandaloneTabBar } from '@/components/StandaloneTabBar';
 import { useSoundSight } from '@/context/SoundSightContext';
 import type { SoundEvent } from '@/types/sound';
 
@@ -15,7 +16,7 @@ export default function RecentSoundsScreen() {
 
   return (
     <SafeAreaView className="flex-1 overflow-hidden bg-[#021E32]">
-      <View pointerEvents="none" className="absolute inset-x-0 bottom-0"><GlacierWave height={220} opacity={0.9} /></View>
+      <ScreenArtwork source={require('../../assets/background-recent.png')} />
       <ScrollView className="z-10 flex-1" contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 150 }} showsVerticalScrollIndicator={false}>
         <AppHeader listening={isLiveListening} onToggleListening={() => setIsLiveListening(!isLiveListening)} />
         <View className="h-12 flex-row items-center justify-between">
@@ -29,6 +30,7 @@ export default function RecentSoundsScreen() {
           })}
         </View>
       </ScrollView>
+      <StandaloneTabBar active="History" />
       <SoundDetailModal sound={selectedSound} visible={Boolean(selectedSound)} onClose={() => setSelectedSound(null)} />
     </SafeAreaView>
   );

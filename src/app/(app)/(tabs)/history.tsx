@@ -5,6 +5,7 @@ import { Search, Trash2, X } from 'lucide-react-native';
 import { SoundDetailModal } from '@/components/SoundDetailModal';
 import { SoundIcon } from '@/components/SoundIcon';
 import { useSoundSight } from '@/context/SoundSightContext';
+import { filterSoundHistory } from '@/services/soundHistorySearch';
 import type { SoundEvent } from '@/types/sound';
 
 interface HistorySection {
@@ -32,12 +33,7 @@ export default function HistoryScreen() {
   const [selectedSound, setSelectedSound] = useState<SoundEvent | null>(null);
 
   const sections = useMemo<HistorySection[]>(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const filtered = normalizedQuery
-      ? soundHistory.filter((event) =>
-          `${event.label} ${event.soundType} ${event.direction}`.toLowerCase().includes(normalizedQuery)
-        )
-      : soundHistory;
+    const filtered = filterSoundHistory(soundHistory, query);
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     const startOfYesterday = new Date(startOfToday);
@@ -106,7 +102,7 @@ export default function HistoryScreen() {
           </View>
         ))}
 
-        {sections.length === 0 && <View className="items-center py-16"><Text className="text-sm text-[#A9C6D8]">{soundHistory.length === 0 ? 'No sound history yet.' : 'No matching sounds found.'}</Text></View>}
+        {sections.length === 0 && <View className="items-center py-16"><Text className="text-sm text-[#A9C6D8]">{soundHistory.length === 0 ? 'No sounds detected yet' : 'No matching sounds'}</Text></View>}
       </ScrollView>
 
       <SoundDetailModal sound={selectedSound} visible={Boolean(selectedSound)} onClose={() => setSelectedSound(null)} />

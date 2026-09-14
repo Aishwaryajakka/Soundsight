@@ -34,14 +34,14 @@ def _localizer(config: AudioConfig, *, announce: bool = True, actual_channels: i
         return None, result
 
 
-def _classifier_components(config: AudioConfig):
+def _classifier_components(config: AudioConfig, threshold=None):
     from classifier import StableDetectionFilter, YamNetClassifier
 
     print("Loading official YAMNet model from TensorFlow Hub...", flush=True)
     classifier = YamNetClassifier()
     classifier.load()
     print("YAMNet ready.", flush=True)
-    return classifier, StableDetectionFilter(config)
+    return classifier, StableDetectionFilter(config, threshold=threshold)
 
 
 def classify_file(path: Path, config: AudioConfig) -> None:
@@ -89,12 +89,13 @@ def classify_live(
     on_event=None,
     stop_event: threading.Event = None,
     print_events: bool = True,
+    confidence_threshold=None,
 ) -> None:
     from audio_capture import LiveAudioCapture
     from classifier import classify_window
     from event_tracker import EventTracker, print_new_event
 
-    classifier, detection_filter = _classifier_components(config)
+    classifier, detection_filter = _classifier_components(config, threshold=confidence_threshold)
     localizer, fallback = _localizer(config)
     tracker = EventTracker(config)
     window_frames = int(round(config.inference_window_seconds * config.sample_rate))

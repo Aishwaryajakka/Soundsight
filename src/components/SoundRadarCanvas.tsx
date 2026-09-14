@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import type React from 'react';
+import { useEffect } from 'react';
 import { View, Text, Pressable, useWindowDimensions } from 'react-native';
 import Svg, {
   Circle,
@@ -18,7 +19,7 @@ import Animated, {
   useReducedMotion,
 } from 'react-native-reanimated';
 import { User } from 'lucide-react-native';
-import { SoundEvent } from '@/types/sound';
+import type { SoundEvent } from '@/types/sound';
 import { SoundIcon } from '@/components/SoundIcon';
 import { soundEventService } from '@/services/soundEventService';
 
@@ -49,6 +50,8 @@ const contourPath = (cx: number, cy: number, radius: number, seed: number) => {
   });
   return `${d} Z`;
 };
+
+const BEARING_SPOKES = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330] as const;
 
 export const SoundRadarCanvas: React.FC<SoundRadarCanvasProps> = ({
   sounds,
@@ -149,6 +152,20 @@ export const SoundRadarCanvas: React.FC<SoundRadarCanvasProps> = ({
             opacity={0.25 + i * 0.13}
           />
         ))}
+
+        {/* Faint bearing spokes visible in the supplied radar reference. */}
+        {BEARING_SPOKES.map((degrees) => {
+          const angle = (degrees / 180) * Math.PI;
+          return (
+            <Path
+              key={`bearing-${degrees}`}
+              d={`M ${center} ${center} L ${center + Math.cos(angle) * radius} ${center + Math.sin(angle) * radius}`}
+              stroke="#2380AC"
+              strokeWidth="0.65"
+              opacity={0.22}
+            />
+          );
+        })}
 
         {/* Mathematical Cardinal Axis Markers */}
         <Path

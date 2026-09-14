@@ -10,7 +10,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from classifier import StableDetectionFilter, classification_mono, measured_intensity
+from classifier import ConfidenceThreshold, StableDetectionFilter, classification_mono, measured_intensity
 from config import AudioConfig
 from label_mapper import MappedClass
 
@@ -53,6 +53,15 @@ class ClassifierPipelineTests(unittest.TestCase):
     def test_intensity_is_normalized_measured_energy(self) -> None:
         waveform = np.full(100, 0.05, dtype=np.float32)
         self.assertAlmostEqual(measured_intensity(waveform, reference_rms=0.1), 0.5)
+
+    def test_live_threshold_changes_filter_behavior(self) -> None:
+        config = AudioConfig(stable_windows=1, smoothing_alpha=1.0, detection_cooldown_seconds=0)
+        threshold = ConfidenceThreshold(0.50)
+        stable = StableDetectionFilter(config, threshold=threshold)
+        prediction = MappedClass("door_knock", "Door Knock", "Knock", 0.40)
+        self.assertEqual(stable.update([prediction], intensity=0.5, now=0.0), [])
+        threshold.set(0.35)
+        self.assertEqual(len(stable.update([prediction], intensity=0.5, now=1.0)), 1)
 
 
 if __name__ == "__main__":

@@ -35,7 +35,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   return (
     <View className="h-14 flex-row items-center justify-between">
-      <SoundSightWordmark markSize={36} textSize="lg" />
+      <SoundSightWordmark markSize={36} textSize="lg" variant="dark" />
       {typeof listening === 'boolean' && (
         <Pressable
           accessibilityRole="button"
