@@ -131,7 +131,7 @@ def classify_live(
                 buffered = buffered[hop_frames:]
 
 
-def classify_audio_source(config: AudioConfig, source, *, on_event=None, stop_event=None, confidence_threshold=None) -> None:
+def classify_audio_source(config: AudioConfig, source, *, on_event=None, stop_event=None, confidence_threshold=None, on_audio_chunk=None) -> None:
     """Run the existing classifier/tracker over an already-normalized AudioSource."""
     from classifier import classify_window
     from event_tracker import EventTracker, print_new_event
@@ -149,6 +149,9 @@ def classify_audio_source(config: AudioConfig, source, *, on_event=None, stop_ev
         while stop_event is None or not stop_event.is_set():
             try: block = source.read(timeout=1.0)
             except __import__('queue').Empty: continue
+            # Feed STT directly from each received block. Classification/model
+            # loading must never delay or starve Conversation Mode.
+            if on_audio_chunk is not None: on_audio_chunk(block, source.sample_rate)
             buffered = np.concatenate((buffered, block), axis=0)
             if time.monotonic() - last_metrics >= config.output_interval:
                 from audio_capture import calculate_metrics

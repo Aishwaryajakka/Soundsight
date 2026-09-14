@@ -4,7 +4,7 @@ import {
   Text,
   ScrollView,
   Pressable,
-  Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, type RelativePathString } from 'expo-router';
@@ -27,7 +27,6 @@ export default function MapScreen() {
     isLiveListening,
     setIsLiveListening,
     micPermissionDenied,
-    setMicPermissionDenied,
     activeSounds,
     selectedSound,
     setSelectedSound,
@@ -37,7 +36,6 @@ export default function MapScreen() {
     showSoundIntensity,
     keepEventsVisibleDuration,
     productMode,
-    setProductMode,
     transcripts,
     transcriptionStatus,
     conversationPaused,
@@ -45,9 +43,15 @@ export default function MapScreen() {
     clearTranscripts,
     operatingMode,
     clearDemoData,
+    mode,
+    enterLiveMode,
+    enterConversationMode,
+    enableClientMicrophone,
+    clientMicrophoneEnabled,
   } = useSoundSight();
 
   const [modalVisible, setModalVisible] = useState(false);
+  const [clearTranscriptConfirmationVisible, setClearTranscriptConfirmationVisible] = useState(false);
 
   const handleSelectSound = (sound: SoundEvent) => {
     setSelectedSound(sound);
@@ -60,6 +64,10 @@ export default function MapScreen() {
       return;
     }
     setIsLiveListening(!isLiveListening);
+  };
+  const startConversation = async () => {
+    if (!clientMicrophoneEnabled && !await enableClientMicrophone()) return;
+    enterConversationMode();
   };
 
   // Recent sounds list (latest 4)
@@ -86,7 +94,7 @@ export default function MapScreen() {
               </View>
             </View>
             <Pressable
-              onPress={() => setMicPermissionDenied(false)}
+              onPress={() => { void enableClientMicrophone(); }}
               className="px-3 py-1.5 rounded-xl bg-[#55C2E8] active:opacity-80"
             >
               <Text className="text-xs font-bold text-[#021E32]">
@@ -104,7 +112,8 @@ export default function MapScreen() {
         />
 
         <View className="mb-2 mt-1 h-10 flex-row rounded-xl border border-[#55C2E8]/20 bg-[#062C45] p-1">
-          {(['awareness', 'conversation'] as const).map((mode) => <Pressable key={mode} onPress={() => setProductMode(mode)} className={`flex-1 items-center justify-center rounded-lg ${productMode === mode ? 'bg-[#55C2E8]' : ''}`}><Text className={`text-[13px] font-semibold ${productMode === mode ? 'text-[#021E32]' : 'text-[#A9C6D8]'}`}>{mode === 'awareness' ? 'Awareness' : 'Conversation'}</Text></Pressable>)}
+          <Pressable onPress={enterLiveMode} className={`flex-1 items-center justify-center rounded-lg ${mode !== 'conversation' ? 'bg-[#55C2E8]' : ''}`}><Text className={`text-[13px] font-semibold ${mode !== 'conversation' ? 'text-[#021E32]' : 'text-[#A9C6D8]'}`}>Awareness</Text></Pressable>
+          <Pressable onPress={() => { void startConversation(); }} className={`flex-1 items-center justify-center rounded-lg ${mode === 'conversation' ? 'bg-[#55C2E8]' : ''}`}><Text className={`text-[13px] font-semibold ${mode === 'conversation' ? 'text-[#021E32]' : 'text-[#A9C6D8]'}`}>Conversation</Text></Pressable>
         </View>
 
         {productMode === 'awareness' ? <>
@@ -202,8 +211,8 @@ export default function MapScreen() {
           </ScrollView>
           <View className="mt-4 flex-row gap-2">
             <Pressable onPress={() => setConversationPaused(!conversationPaused)} className="h-11 flex-1 items-center justify-center rounded-xl border border-[#55C2E8]/30"><Text className="text-sm font-semibold text-[#C6E8F5]">{conversationPaused ? 'Resume' : 'Pause'}</Text></Pressable>
-            <Pressable onPress={() => Alert.alert('Clear transcripts?', 'This removes all locally stored caption text.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear', style: 'destructive', onPress: clearTranscripts }])} className="h-11 flex-1 items-center justify-center rounded-xl border border-[#55C2E8]/30"><Text className="text-sm font-semibold text-[#C6E8F5]">Clear</Text></Pressable>
-            <Pressable onPress={() => setProductMode('awareness')} className="h-11 flex-[1.35] items-center justify-center rounded-xl bg-[#55C2E8]"><Text className="text-sm font-bold text-[#021E32]">End Conversation</Text></Pressable>
+            <Pressable onPress={() => setClearTranscriptConfirmationVisible(true)} className="h-11 flex-1 items-center justify-center rounded-xl border border-[#55C2E8]/30"><Text className="text-sm font-semibold text-[#C6E8F5]">Clear</Text></Pressable>
+            <Pressable onPress={enterLiveMode} className="h-11 flex-[1.35] items-center justify-center rounded-xl bg-[#55C2E8]"><Text className="text-sm font-bold text-[#021E32]">End Conversation</Text></Pressable>
           </View>
           <Text className="mt-5 text-center text-[11px] leading-4 text-[#8BAABD]">Transcripts stay on this device and are automatically deleted after 7 days.</Text>
         </View>}
@@ -215,6 +224,7 @@ export default function MapScreen() {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
       />
+      <Modal transparent animationType="fade" visible={clearTranscriptConfirmationVisible} onRequestClose={() => setClearTranscriptConfirmationVisible(false)}><View className="flex-1 items-center justify-center bg-[#011827]/85 px-6"><View className="w-full max-w-[360px] rounded-2xl border border-[#55C2E8]/20 bg-[#062C45] p-5"><Text className="text-lg font-bold text-[#F7FBFD]">Clear conversation transcripts?</Text><Text className="mt-2 text-[13px] leading-5 text-[#A9C6D8]">This removes all locally stored caption text.</Text><View className="mt-5 flex-row gap-3"><Pressable onPress={() => setClearTranscriptConfirmationVisible(false)} className="h-11 flex-1 items-center justify-center rounded-xl border border-[#55C2E8]/30"><Text className="text-sm font-semibold text-[#C6E8F5]">Cancel</Text></Pressable><Pressable onPress={() => { setClearTranscriptConfirmationVisible(false); clearTranscripts(); }} className="h-11 flex-1 items-center justify-center rounded-xl bg-[#55C2E8]"><Text className="text-sm font-bold text-[#021E32]">Clear</Text></Pressable></View></View></View></Modal>
     </SafeAreaView>
   );
 }

@@ -66,9 +66,9 @@ class WebSocketServerTests(unittest.IsolatedAsyncioTestCase):
     async def test_transcript_uses_separate_message_schema(self) -> None:
         async with websockets.connect(self.url) as client:
             await client.recv()
-            segment = {"type": "transcript", "id": "transcript-test", "text": "Hello there", "timestamp": 1789284184450, "isFinal": True}
+            segment = {"id": "transcript-test", "text": "Hello there", "timestamp": 1789284184450, "isFinal": True}
             self.server.publish_transcript_threadsafe(segment)
-            self.assertEqual(json.loads(await asyncio.wait_for(client.recv(), timeout=1.0)), segment)
+            self.assertEqual(json.loads(await asyncio.wait_for(client.recv(), timeout=1.0)), {"type": "transcript", "segment": segment})
 
     async def test_malformed_event_is_rejected(self) -> None:
         malformed = dict(self.event)

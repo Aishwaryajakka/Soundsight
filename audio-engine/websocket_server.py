@@ -135,9 +135,10 @@ class SoundEventWebSocketServer:
             if isinstance(payload, dict) and payload.get("type") == "audio_config":
                 if self.audio_source is None or set(payload) != {"type", "format", "sampleRate", "channels"}:
                     raise ValueError
-                self.audio_source.configure(id(client), payload["sampleRate"], payload["channels"], payload["format"])
+                configured = self.audio_source.configure(id(client), payload["sampleRate"], payload["channels"], payload["format"])
                 await self._enqueue(client, json.dumps({"type":"audio_config_ack","sampleRate":16000,"channels":1}, separators=(",", ":")))
-                print(f"Audio config received: 16000 Hz mono PCM", flush=True)
+                if configured:
+                    print("Audio config received: 16000 Hz mono PCM", flush=True)
                 return
             if isinstance(payload, dict) and set(payload) == {"type", "enabled", "paused"} and payload["type"] == "conversation" and isinstance(payload["enabled"], bool) and isinstance(payload["paused"], bool):
                 if self.transcriber is None:
@@ -222,7 +223,7 @@ class SoundEventWebSocketServer:
 
     def publish_transcript_threadsafe(self, segment: TranscriptSegment) -> None:
         validate_transcript_segment(segment)
-        self._publish_payload_threadsafe(segment)
+        self._publish_payload_threadsafe({"type": "transcript", "segment": segment})
 
     def publish_transcription_status_threadsafe(self, status: str) -> None:
         if status not in {"listening", "processing", "paused", "offline"}: return
@@ -292,7 +293,7 @@ async def serve_engine(config: AudioConfig, *, test_event_only: bool = False, so
         # Import here to avoid a main.py import cycle.
         from main import classify_audio_source, classify_live
         if audio_source is not None:
-            classify_audio_source(config, audio_source, on_event=server.publish_threadsafe, stop_event=stop_event, confidence_threshold=confidence_threshold)
+            classify_audio_source(config, audio_source, on_event=server.publish_threadsafe, stop_event=stop_event, confidence_threshold=confidence_threshold, on_audio_chunk=transcriber.submit)
         else:
             classify_live(config, on_event=server.publish_threadsafe, stop_event=stop_event, print_events=True, confidence_threshold=confidence_threshold, on_audio_chunk=transcriber.submit)
 

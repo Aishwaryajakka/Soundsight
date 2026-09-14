@@ -42,15 +42,18 @@ class WebSocketAudioSource:
     def start(self) -> None: pass
     def stop(self) -> None: self.clear()
 
-    def configure(self, owner: int, sample_rate: int, channels: int, fmt: str) -> None:
+    def configure(self, owner: int, sample_rate: int, channels: int, fmt: str) -> bool:
         if fmt != "pcm_s16le" or channels != 1 or sample_rate != 16_000:
             raise ValueError("audio stream must be mono pcm_s16le at 16000 Hz")
         with self._lock:
             if self._owner not in (None, owner):
                 raise ValueError("another client already owns the audio stream")
+            if self._owner == owner and self.sample_rate == sample_rate and self.channels == channels:
+                return False
             self._owner = owner
             self.sample_rate, self.channels = sample_rate, channels
             self.clear()
+            return True
 
     def push(self, owner: int, payload: bytes) -> int:
         with self._lock:

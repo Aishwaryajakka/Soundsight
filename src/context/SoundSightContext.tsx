@@ -37,6 +37,11 @@ import {
 } from '@/services/soundSettingsStorage';
 
 export interface SoundSightContextType {
+  mode: 'live' | 'demo' | 'conversation';
+  setMode: (mode: 'live' | 'demo' | 'conversation') => void;
+  enterLiveMode: () => void;
+  enterDemoMode: () => void;
+  enterConversationMode: () => void;
   operatingMode: 'live' | 'demo';
   liveConnectionState: LiveSoundConnectionState;
   isLiveListening: boolean;
@@ -103,6 +108,7 @@ export interface SoundSightContextType {
   feedbackMessage: string | null;
   showFeedback: (message: string) => void;
   enableClientMicrophone: () => Promise<boolean>;
+  clientMicrophoneEnabled: boolean;
 }
 
 const INITIAL_SETTINGS: AppSettings = {
@@ -373,11 +379,10 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const handledEventIds = useRef(new Set<string>());
   const handledEventOrder = useRef<string[]>([]);
   const settingsRestored = useRef(false);
-  const [productMode, setProductMode] = useState<'awareness' | 'conversation'>('awareness');
+  const [mode, setModeState] = useState<'live' | 'demo' | 'conversation'>('live');
   const [transcripts, setTranscripts] = useState<TranscriptSegment[]>([]);
   const [transcriptionStatus, setTranscriptionStatus] = useState<TranscriptionStatus>('offline');
   const [conversationPaused, setConversationPaused] = useState(false);
-  const [operatingMode, setOperatingMode] = useState<'live' | 'demo'>('live');
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [clientMicrophoneEnabled, setClientMicrophoneEnabled] = useState(false);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -408,12 +413,15 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setTranscripts((current) => { const next = normalizeTranscripts([...current.filter((item) => item.id !== segment.id), segment]); if (segment.isFinal) void transcriptStorage.save(next); return next; });
   }), []);
   useEffect(() => liveSoundEventService.subscribeTranscriptionStatus(setTranscriptionStatus), []);
-  useEffect(() => { liveSoundEventService.setConversationMode(productMode === 'conversation', conversationPaused); if (productMode !== 'conversation') setConversationPaused(false); }, [productMode, conversationPaused]);
+  const productMode: 'awareness' | 'conversation' = mode === 'conversation' ? 'conversation' : 'awareness';
+  const operatingMode: 'live' | 'demo' = mode === 'demo' ? 'demo' : 'live';
+
+  useEffect(() => { liveSoundEventService.setConversationMode(mode === 'conversation', conversationPaused); if (mode !== 'conversation') setConversationPaused(false); }, [mode, conversationPaused]);
 
   const clearTranscripts = useCallback(() => { if (!transcriptsRestored.current) transcriptsClearedDuringRestore.current = true; setTranscripts([]); void transcriptStorage.clear(); showFeedback('Conversation transcripts cleared.'); }, [showFeedback]);
 
   const clearDemoData = useCallback(() => {
-    setOperatingMode('live');
+    setModeState('live');
     setIsLiveListening(true);
     setActiveSounds((current) => current.filter((event) => !isDemoRecordId(event.id)));
     setSoundHistory((current) => current.filter((event) => !isDemoRecordId(event.id)));
@@ -426,7 +434,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const loadDemoData = useCallback(() => {
     const demoEvents = createDemoSoundEvents();
     const demoTranscripts = createDemoTranscripts();
-    setOperatingMode('demo');
+    setModeState('demo');
     setIsLiveListening(false);
     liveSoundEventService.stop();
     void clientAudioStream.stop();
@@ -439,14 +447,48 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     showFeedback('Demo data loaded.');
   }, [showFeedback]);
 
+  const enterLiveMode = useCallback(() => {
+    setModeState('live');
+    setActiveSounds((current) => current.filter((event) => !isDemoRecordId(event.id)));
+    setSoundHistory((current) => current.filter((event) => !isDemoRecordId(event.id)));
+    setTranscripts((current) => current.filter((segment) => !isDemoRecordId(segment.id)));
+    setSelectedSound((current) => current && isDemoRecordId(current.id) ? null : current);
+    liveSoundEventService.setConversationMode(false);
+    liveSoundEventService.start();
+    showFeedback('Live mode selected.');
+  }, [showFeedback]);
+
+  const enterConversationMode = useCallback(() => {
+    setModeState('conversation');
+    setActiveSounds((current) => current.filter((event) => !isDemoRecordId(event.id)));
+    setSoundHistory((current) => current.filter((event) => !isDemoRecordId(event.id)));
+    setTranscripts((current) => current.filter((segment) => !isDemoRecordId(segment.id)));
+    setSelectedSound((current) => current && isDemoRecordId(current.id) ? null : current);
+    setIsLiveListening(true);
+    liveSoundEventService.start();
+    liveSoundEventService.setConversationMode(true, false);
+    showFeedback('Conversation mode started.');
+  }, [showFeedback]);
+
+  const setMode = useCallback((nextMode: 'live' | 'demo' | 'conversation') => {
+    if (nextMode === 'demo') loadDemoData();
+    else if (nextMode === 'conversation') enterConversationMode();
+    else enterLiveMode();
+  }, [loadDemoData, enterConversationMode, enterLiveMode]);
+
+  const setProductMode = useCallback((nextMode: 'awareness' | 'conversation') => {
+    if (nextMode === 'conversation') enterConversationMode();
+    else enterLiveMode();
+  }, [enterConversationMode, enterLiveMode]);
+
   useEffect(() => {
     if (!clientMicrophoneEnabled) return;
-    if (operatingMode === 'live' && isLiveListening && liveConnectionState === 'connected') {
+    if (mode !== 'demo' && isLiveListening && liveConnectionState === 'connected') {
       void clientAudioStream.start().catch(() => showFeedback('Microphone stream could not resume.'));
     } else {
       void clientAudioStream.stop();
     }
-  }, [clientMicrophoneEnabled, operatingMode, isLiveListening, liveConnectionState, showFeedback]);
+  }, [clientMicrophoneEnabled, mode, isLiveListening, liveConnectionState, showFeedback]);
 
   useEffect(() => {
     let cancelled = false;
@@ -551,7 +593,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
    */
   const ingestSoundEvent = useCallback(
     (event: SoundEvent) => {
-      if (operatingMode === 'live' && !isLiveListening) return;
+      if (mode !== 'demo' && !isLiveListening) return;
       // One stabilized event ID may arrive more than once after transport
       // reconnects. Suppress every downstream side effect, including haptics.
       if (!acceptUniqueEventId(
@@ -591,7 +633,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setIsStrobeActive(true);
       }
     },
-    [triggerHaptic, visualAlertsEnabled, operatingMode, isLiveListening]
+    [triggerHaptic, visualAlertsEnabled, mode, isLiveListening]
   );
 
   // Subscribe context to soundEventService
@@ -717,6 +759,11 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const value = useMemo(
     () => ({
       liveConnectionState,
+      mode,
+      setMode,
+      enterLiveMode,
+      enterDemoMode: loadDemoData,
+      enterConversationMode,
       isLiveListening,
       setIsLiveListening,
       micPermissionDenied,
@@ -782,9 +829,14 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       feedbackMessage,
       showFeedback,
       enableClientMicrophone,
+      clientMicrophoneEnabled,
     }),
     [
       liveConnectionState,
+      mode,
+      setMode,
+      enterLiveMode,
+      enterConversationMode,
       isLiveListening,
       micPermissionDenied,
       activeSounds,
@@ -822,6 +874,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       lastTriggeredSoundId,
       testHaptic,
       productMode,
+      setProductMode,
       transcripts,
       transcriptionStatus,
       conversationPaused,
@@ -832,6 +885,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       feedbackMessage,
       showFeedback,
       enableClientMicrophone,
+      clientMicrophoneEnabled,
     ]
   );
 

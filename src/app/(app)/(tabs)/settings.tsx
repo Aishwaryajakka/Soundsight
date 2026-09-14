@@ -1,4 +1,5 @@
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronRight, CircleHelp, Info, LockKeyhole, MessageCircleQuestion } from 'lucide-react-native';
 import { useRouter, type Href } from 'expo-router';
@@ -12,9 +13,16 @@ const SectionTitle = ({ children }: { children: string }) => <Text className="mb
 export default function SettingsScreen() {
   const router = useRouter();
   const state = useSoundSight();
-  const clearSoundHistory = () => Alert.alert('Clear sound history?', 'This removes locally stored event metadata. Active sounds and settings are not affected.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear History', style: 'destructive', onPress: state.clearHistory }]);
-  const clearTranscripts = () => state.transcripts.length === 0 ? state.showFeedback('No transcripts to clear.') : Alert.alert('Clear conversation transcripts?', 'This removes all locally stored live-caption text.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear', style: 'destructive', onPress: state.clearTranscripts }]);
-  const clearDemoData = () => Alert.alert('Clear demo data?', 'This removes only the sample sounds and captions. Your real history and settings remain.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear Demo Data', style: 'destructive', onPress: state.clearDemoData }]);
+  const [confirmation, setConfirmation] = useState<null | { title: string; message: string; label: string; action: () => void }>(null);
+  const confirm = (title: string, message: string, label: string, action: () => void) => setConfirmation({ title, message, label, action });
+  const clearSoundHistory = () => confirm('Clear sound history?', 'This removes locally stored event metadata. Active sounds and settings are not affected.', 'Clear', state.clearHistory);
+  const clearTranscripts = () => state.transcripts.length === 0 ? state.showFeedback('No transcripts to clear.') : confirm('Clear conversation transcripts?', 'This removes all locally stored live-caption text.', 'Clear', state.clearTranscripts);
+  const clearDemoData = () => confirm('Clear demo data?', 'This removes only the sample sounds and captions. Your real history and settings remain.', 'Clear Demo Data', state.clearDemoData);
+  const toggleDemoMode = () => {
+    if (!state.demoModeEnabled) { state.enterDemoMode(); return; }
+    state.enterLiveMode();
+    if (!state.clientMicrophoneEnabled) router.replace('/microphone');
+  };
   const infoRows = [
     { label: 'How It Works', slug: 'how-it-works', icon: MessageCircleQuestion },
     { label: 'Privacy', slug: 'privacy', icon: LockKeyhole },
@@ -46,12 +54,13 @@ export default function SettingsScreen() {
       <View className="rounded-2xl border border-[#55C2E8]/15 bg-[#062C45] p-4"><Text className="text-[15px] font-semibold text-[#F7FBFD]">Sound History</Text><Text className="mt-1 text-xs leading-5 text-[#A9C6D8]">Detected sound events are stored locally on this device.</Text><Pressable onPress={clearSoundHistory} className="mt-3 h-10 items-center justify-center rounded-xl border border-[#55C2E8]/30"><Text className="text-sm font-semibold text-[#55C2E8]">Clear Sound History</Text></Pressable><View className="my-4 h-px bg-[#55C2E8]/10" /><View className="flex-row items-center justify-between"><Text className="text-[15px] font-semibold text-[#F7FBFD]">Conversation Transcripts</Text><Text className="text-xs font-semibold text-[#55C2E8]">7 days</Text></View><Text className="mt-1 text-xs leading-5 text-[#A9C6D8]">Live caption text is stored locally and automatically deleted after 7 days.</Text><Pressable onPress={clearTranscripts} className="mt-3 h-10 items-center justify-center rounded-xl border border-[#55C2E8]/30"><Text className="text-sm font-semibold text-[#55C2E8]">Clear Transcripts</Text></Pressable></View>
       <SectionTitle>Demo</SectionTitle>
       <View className="rounded-2xl border border-[#55C2E8]/15 bg-[#062C45] px-4">
-        <View className="min-h-[68px] flex-row items-center"><View className="flex-1 pr-3"><Text className="text-[15px] font-semibold text-[#F7FBFD]">Demo Mode</Text><Text className="mt-1 text-xs text-[#A9C6D8]">Explore deterministic sample sounds and captions.</Text></View><Toggle enabled={state.demoModeEnabled} onPress={() => state.demoModeEnabled ? clearDemoData() : state.loadDemoData()} label="Demo Mode" /></View>
+        <View className="min-h-[68px] flex-row items-center"><View className="flex-1 pr-3"><Text className="text-[15px] font-semibold text-[#F7FBFD]">Demo Mode</Text><Text className="mt-1 text-xs text-[#A9C6D8]">Explore deterministic sample sounds and captions.</Text></View><Toggle enabled={state.demoModeEnabled} onPress={toggleDemoMode} label="Demo Mode" /></View>
         <Pressable accessibilityRole="button" onPress={state.loadDemoData} className="h-12 items-center justify-center border-t border-[#55C2E8]/10"><Text className="text-sm font-semibold text-[#55C2E8]">Load Demo Data</Text></Pressable>
         <Pressable accessibilityRole="button" onPress={clearDemoData} disabled={!state.demoModeEnabled} className={`h-12 items-center justify-center border-t border-[#55C2E8]/10 ${state.demoModeEnabled ? '' : 'opacity-40'}`}><Text className="text-sm font-semibold text-[#55C2E8]">Clear Demo Data</Text></Pressable>
       </View>
       <SectionTitle>About</SectionTitle>
       <View className="overflow-hidden rounded-2xl border border-[#55C2E8]/15 bg-[#062C45] px-4">{infoRows.map((row, index) => <Pressable key={row.slug} onPress={() => router.push({ pathname: '/info/[slug]', params: { slug: row.slug } } as unknown as Href)} className={`h-14 flex-row items-center ${index > 0 ? 'border-t border-[#55C2E8]/10' : ''}`}><row.icon size={19} color="#55C2E8" /><Text className="ml-3 flex-1 text-[15px] font-medium text-[#F7FBFD]">{row.label}</Text><ChevronRight size={18} color="#A9C6D8" /></Pressable>)}</View>
     </ScrollView>
+    <Modal transparent animationType="fade" visible={Boolean(confirmation)} onRequestClose={() => setConfirmation(null)}><View className="flex-1 items-center justify-center bg-[#011827]/85 px-6"><View className="w-full max-w-[360px] rounded-2xl border border-[#55C2E8]/20 bg-[#062C45] p-5"><Text className="text-lg font-bold text-[#F7FBFD]">{confirmation?.title}</Text><Text className="mt-2 text-[13px] leading-5 text-[#A9C6D8]">{confirmation?.message}</Text><View className="mt-5 flex-row gap-3"><Pressable onPress={() => setConfirmation(null)} className="h-11 flex-1 items-center justify-center rounded-xl border border-[#55C2E8]/30"><Text className="text-sm font-semibold text-[#C6E8F5]">Cancel</Text></Pressable><Pressable onPress={() => { const action = confirmation?.action; setConfirmation(null); action?.(); }} className="h-11 flex-1 items-center justify-center rounded-xl bg-[#55C2E8]"><Text className="text-sm font-bold text-[#021E32]">{confirmation?.label}</Text></Pressable></View></View></View></Modal>
   </SafeAreaView>;
 }

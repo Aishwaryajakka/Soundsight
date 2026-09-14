@@ -10,8 +10,11 @@ export function parseTranscriptMessage(value: unknown): TranscriptSegment | null
   let candidate = value;
   if (typeof value === 'string') { try { candidate = JSON.parse(value); } catch { return null; } }
   if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
-  const item = candidate as Record<string, unknown>;
-  if (item.type !== 'transcript' || typeof item.id !== 'string' || !item.id.trim() || typeof item.text !== 'string' || !item.text.trim() || typeof item.timestamp !== 'number' || !Number.isInteger(item.timestamp) || item.timestamp < 0 || typeof item.isFinal !== 'boolean') return null;
+  const envelope = candidate as Record<string, unknown>;
+  const item = envelope.type === 'transcript' && envelope.segment && typeof envelope.segment === 'object' && !Array.isArray(envelope.segment)
+    ? envelope.segment as Record<string, unknown>
+    : envelope;
+  if (envelope.type !== 'transcript' || typeof item.id !== 'string' || !item.id.trim() || typeof item.text !== 'string' || !item.text.trim() || typeof item.timestamp !== 'number' || !Number.isInteger(item.timestamp) || item.timestamp < 0 || typeof item.isFinal !== 'boolean') return null;
   return { id: item.id.trim(), text: item.text.trim(), timestamp: item.timestamp, isFinal: item.isFinal };
 }
 

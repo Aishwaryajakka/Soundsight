@@ -10,6 +10,14 @@ from audio_sources import WebSocketAudioSource
 
 
 class WebSocketAudioSourceTests(unittest.TestCase):
+    def test_repeated_identical_config_does_not_clear_buffer(self) -> None:
+        source = WebSocketAudioSource()
+        owner = 7
+        self.assertTrue(source.configure(owner, 16_000, 1, "pcm_s16le"))
+        source.push(owner, np.array([1000, -1000], dtype="<i2").tobytes())
+        self.assertFalse(source.configure(owner, 16_000, 1, "pcm_s16le"))
+        self.assertEqual(source.read(timeout=0.1).shape, (2, 1))
+
     def test_config_pcm_conversion_and_disconnect_cleanup(self):
         source = WebSocketAudioSource()
         source.configure(1, 16000, 1, "pcm_s16le")

@@ -42,6 +42,7 @@ export class LiveSoundEventService {
   private conversationEnabled = false;
   private conversationPaused = false;
   private audioConfig: AudioStreamConfig | null = null;
+  private audioConfigSent = false;
 
   constructor(
     private readonly url: string | undefined,
@@ -61,7 +62,15 @@ export class LiveSoundEventService {
   public subscribeTranscripts(listener: TranscriptListener): () => void { this.transcriptListeners.add(listener); return () => this.transcriptListeners.delete(listener); }
   public subscribeTranscriptionStatus(listener: TranscriptionStatusListener): () => void { this.transcriptionStatusListeners.add(listener); return () => this.transcriptionStatusListeners.delete(listener); }
   public setConversationMode(enabled: boolean, paused = false): boolean { this.conversationEnabled = enabled; this.conversationPaused = paused; return this.sendConversationConfig(); }
-  public configureAudioStream(config: AudioStreamConfig): boolean { this.audioConfig = config; return this.sendAudioConfig(); }
+  public configureAudioStream(config: AudioStreamConfig): boolean {
+    const changed = !this.audioConfig
+      || this.audioConfig.format !== config.format
+      || this.audioConfig.sampleRate !== config.sampleRate
+      || this.audioConfig.channels !== config.channels;
+    this.audioConfig = config;
+    if (changed) this.audioConfigSent = false;
+    return this.sendAudioConfig();
+  }
   public sendAudioFrame(frame: ArrayBuffer): boolean { if (!this.socket || this.socket.readyState !== 1 || !this.audioConfig) return false; this.socket.send(frame); return true; }
 
   /** Save the desired live-engine threshold and apply it on this or the next connection. */
@@ -93,6 +102,7 @@ export class LiveSoundEventService {
     this.reconnectTimer = null;
     const socket = this.socket;
     this.socket = null;
+    this.audioConfigSent = false;
     if (socket && socket.readyState < 2) socket.close(1000, 'App stopped');
     this.setState('disconnected');
   }
@@ -111,6 +121,7 @@ export class LiveSoundEventService {
       return;
     }
     this.socket = socket;
+    this.audioConfigSent = false;
     socket.onopen = () => {
       if (generation !== this.connectionGeneration) return;
       this.reconnectAttempt = 0;
@@ -141,6 +152,7 @@ export class LiveSoundEventService {
     socket.onclose = () => {
       if (generation !== this.connectionGeneration) return;
       this.socket = null;
+      this.audioConfigSent = false;
       if (this.intentionallyStopped) {
         this.setState('disconnected');
       } else {
@@ -162,7 +174,12 @@ export class LiveSoundEventService {
   }
 
   private sendConversationConfig(): boolean { if (!this.socket || this.socket.readyState !== 1) return false; this.socket.send(JSON.stringify({ type: 'conversation', enabled: this.conversationEnabled, paused: this.conversationPaused })); return true; }
-  private sendAudioConfig(): boolean { if (!this.socket || this.socket.readyState !== 1 || !this.audioConfig) return false; this.socket.send(JSON.stringify({ type: 'audio_config', ...this.audioConfig })); return true; }
+  private sendAudioConfig(): boolean {
+    if (!this.socket || this.socket.readyState !== 1 || !this.audioConfig || this.audioConfigSent) return false;
+    this.socket.send(JSON.stringify({ type: 'audio_config', ...this.audioConfig }));
+    this.audioConfigSent = true;
+    return true;
+  }
 
   private parseTranscriptionStatus(data: unknown): TranscriptionStatus | null { if (typeof data !== 'string') return null; try { const value = JSON.parse(data) as { type?: unknown; status?: unknown }; return value.type === 'transcription_status' && (value.status === 'listening' || value.status === 'processing' || value.status === 'paused' || value.status === 'offline') ? value.status : null; } catch { return null; } }
 
