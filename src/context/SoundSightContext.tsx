@@ -29,6 +29,7 @@ import { acceptUniqueEventId, hapticActionForPriority } from '@/services/eventAl
 import { TranscriptStorage, normalizeTranscripts } from '@/services/transcriptStorage';
 import type { TranscriptSegment, TranscriptionStatus } from '@/types/transcript';
 import { createDemoSoundEvents, createDemoTranscripts, isDemoRecordId } from '@/services/demoData';
+import { clientAudioStream } from '@/services/audio/audioStream';
 import {
   DEFAULT_PERSISTENT_SOUND_SETTINGS,
   mapFadeDurationMs,
@@ -101,6 +102,7 @@ export interface SoundSightContextType {
   clearDemoData: () => void;
   feedbackMessage: string | null;
   showFeedback: (message: string) => void;
+  enableClientMicrophone: () => Promise<boolean>;
 }
 
 const INITIAL_SETTINGS: AppSettings = {
@@ -377,12 +379,27 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [conversationPaused, setConversationPaused] = useState(false);
   const [operatingMode, setOperatingMode] = useState<'live' | 'demo'>('live');
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [clientMicrophoneEnabled, setClientMicrophoneEnabled] = useState(false);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showFeedback = useCallback((message: string) => {
     if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
     setFeedbackMessage(message);
     feedbackTimer.current = setTimeout(() => setFeedbackMessage(null), 2400);
   }, []);
+  const enableClientMicrophone = useCallback(async () => {
+    try {
+      await clientAudioStream.start();
+      setClientMicrophoneEnabled(true);
+      if (liveConnectionState !== 'connected') await clientAudioStream.stop();
+      setMicPermissionDenied(false);
+      showFeedback('Microphone ready. Live audio will stream when AI connects.');
+      return true;
+    } catch (error) {
+      setMicPermissionDenied(true);
+      showFeedback(error instanceof Error ? error.message : 'Microphone access is unavailable.');
+      return false;
+    }
+  }, [showFeedback, liveConnectionState]);
   const transcriptsRestored = useRef(false);
   const transcriptsClearedDuringRestore = useRef(false);
 
@@ -412,6 +429,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setOperatingMode('demo');
     setIsLiveListening(false);
     liveSoundEventService.stop();
+    void clientAudioStream.stop();
     setSoundHistory((current) => mergeSoundHistory(demoEvents, current));
     setActiveSounds((current) => [
       ...demoEvents.filter((event) => event.isActive),
@@ -420,6 +438,15 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setTranscripts((current) => normalizeTranscripts([...current, ...demoTranscripts]));
     showFeedback('Demo data loaded.');
   }, [showFeedback]);
+
+  useEffect(() => {
+    if (!clientMicrophoneEnabled) return;
+    if (operatingMode === 'live' && isLiveListening && liveConnectionState === 'connected') {
+      void clientAudioStream.start().catch(() => showFeedback('Microphone stream could not resume.'));
+    } else {
+      void clientAudioStream.stop();
+    }
+  }, [clientMicrophoneEnabled, operatingMode, isLiveListening, liveConnectionState, showFeedback]);
 
   useEffect(() => {
     let cancelled = false;
@@ -754,6 +781,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       clearDemoData,
       feedbackMessage,
       showFeedback,
+      enableClientMicrophone,
     }),
     [
       liveConnectionState,
@@ -803,6 +831,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       clearDemoData,
       feedbackMessage,
       showFeedback,
+      enableClientMicrophone,
     ]
   );
 

@@ -9,10 +9,14 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "SoundSight uses microphone audio to identify nearby environmental sounds. Raw audio is not stored."
+      },
       "buildNumber": "1",
       "bundleIdentifier": "com.soundsight.app"
     },
     "android": {
+      "permissions": ["RECORD_AUDIO"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

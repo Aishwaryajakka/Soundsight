@@ -18,6 +18,7 @@ from config import AudioConfig
 from event_tracker import EventTracker, SoundEvent, validate_sound_event
 from localization import center_fallback
 from transcription import LocalTranscriber, TranscriptSegment, validate_transcript_segment
+from audio_sources import WebSocketAudioSource
 
 
 @dataclass(eq=False)
@@ -37,6 +38,7 @@ class SoundEventWebSocketServer:
         initial_event: Optional[SoundEvent] = None,
         confidence_threshold: Optional[ConfidenceThreshold] = None,
         transcriber: Optional[LocalTranscriber] = None,
+        audio_source: Optional[WebSocketAudioSource] = None,
     ) -> None:
         config.validate()
         if initial_event is not None:
@@ -45,6 +47,7 @@ class SoundEventWebSocketServer:
         self.initial_event = initial_event
         self.confidence_threshold = confidence_threshold or ConfidenceThreshold(config.min_confidence)
         self.transcriber = transcriber
+        self.audio_source = audio_source
         self._clients: Set[_Client] = set()
         self._server: Optional[WebSocketServer] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
@@ -112,11 +115,15 @@ class SoundEventWebSocketServer:
         sender = asyncio.create_task(self._sender(client))
         try:
             async for message in websocket:
-                await self._handle_control_message(client, message)
+                if isinstance(message, bytes):
+                    await self._handle_audio_frame(client, message)
+                else:
+                    await self._handle_control_message(client, message)
         finally:
             sender.cancel()
             await asyncio.gather(sender, return_exceptions=True)
             self._clients.discard(client)
+            if self.audio_source is not None: self.audio_source.disconnect(id(client))
             if not self._clients:
                 self._client_connected.clear()
             print(f"WebSocket client disconnected ({self.client_count} total): {websocket.remote_address}")
@@ -125,6 +132,13 @@ class SoundEventWebSocketServer:
         error = {"type": "config_error", "code": "invalid_config"}
         try:
             payload = json.loads(message) if isinstance(message, str) else None
+            if isinstance(payload, dict) and payload.get("type") == "audio_config":
+                if self.audio_source is None or set(payload) != {"type", "format", "sampleRate", "channels"}:
+                    raise ValueError
+                self.audio_source.configure(id(client), payload["sampleRate"], payload["channels"], payload["format"])
+                await self._enqueue(client, json.dumps({"type":"audio_config_ack","sampleRate":16000,"channels":1}, separators=(",", ":")))
+                print(f"Audio config received: 16000 Hz mono PCM", flush=True)
+                return
             if isinstance(payload, dict) and set(payload) == {"type", "enabled", "paused"} and payload["type"] == "conversation" and isinstance(payload["enabled"], bool) and isinstance(payload["paused"], bool):
                 if self.transcriber is None:
                     response = {"type": "transcription_status", "status": "offline"}
@@ -152,6 +166,15 @@ class SoundEventWebSocketServer:
         except (ValueError, TypeError, json.JSONDecodeError):
             response = error
         await self._enqueue(client, json.dumps(response, separators=(",", ":")))
+
+    async def _handle_audio_frame(self, client: _Client, payload: bytes) -> None:
+        try:
+            if self.audio_source is None: raise ValueError("binary audio is disabled")
+            count = self.audio_source.push(id(client), payload)
+            if self.audio_source.received_samples % 16000 < count:
+                print(f"Client audio received: {self.audio_source.received_samples} samples", flush=True)
+        except ValueError as exc:
+            await self._enqueue(client, json.dumps({"type":"audio_error","code":"invalid_audio","message":str(exc)}, separators=(",", ":")))
 
     async def _sender(self, client: _Client) -> None:
         try:
@@ -232,16 +255,18 @@ def build_test_event(config: AudioConfig) -> SoundEvent:
     return event
 
 
-async def serve_engine(config: AudioConfig, *, test_event_only: bool = False) -> None:
+async def serve_engine(config: AudioConfig, *, test_event_only: bool = False, source_kind: str = "microphone") -> None:
     """Run transport plus either the real engine worker or deterministic test mode."""
     initial_event = build_test_event(config) if test_event_only else None
     confidence_threshold = ConfidenceThreshold(config.min_confidence)
     transcriber = LocalTranscriber(config.transcription_model, config.transcription_window_seconds)
+    audio_source = WebSocketAudioSource() if source_kind == "websocket" else None
     server = SoundEventWebSocketServer(
         config,
         initial_event=initial_event,
         confidence_threshold=confidence_threshold,
         transcriber=transcriber,
+        audio_source=audio_source,
     )
     await server.start()
     transcriber.start(server.publish_transcript_threadsafe, server.publish_transcription_status_threadsafe)
@@ -265,16 +290,11 @@ async def serve_engine(config: AudioConfig, *, test_event_only: bool = False) ->
 
     def engine_worker() -> None:
         # Import here to avoid a main.py import cycle.
-        from main import classify_live
-
-        classify_live(
-            config,
-            on_event=server.publish_threadsafe,
-            stop_event=stop_event,
-            print_events=True,
-            confidence_threshold=confidence_threshold,
-            on_audio_chunk=transcriber.submit,
-        )
+        from main import classify_audio_source, classify_live
+        if audio_source is not None:
+            classify_audio_source(config, audio_source, on_event=server.publish_threadsafe, stop_event=stop_event, confidence_threshold=confidence_threshold)
+        else:
+            classify_live(config, on_event=server.publish_threadsafe, stop_event=stop_event, print_events=True, confidence_threshold=confidence_threshold, on_audio_chunk=transcriber.submit)
 
     task = asyncio.create_task(asyncio.to_thread(engine_worker))
     try:

@@ -2,6 +2,7 @@ import { soundEventService } from './soundEventService';
 import { parseSoundEvent } from './soundEventValidation';
 import { parseTranscriptMessage } from './transcriptStorage';
 import type { TranscriptSegment, TranscriptionStatus } from '@/types/transcript';
+import type { AudioStreamConfig } from './audio/types';
 
 export type LiveSoundConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -40,6 +41,7 @@ export class LiveSoundEventService {
   private readonly transcriptionStatusListeners = new Set<TranscriptionStatusListener>();
   private conversationEnabled = false;
   private conversationPaused = false;
+  private audioConfig: AudioStreamConfig | null = null;
 
   constructor(
     private readonly url: string | undefined,
@@ -59,6 +61,8 @@ export class LiveSoundEventService {
   public subscribeTranscripts(listener: TranscriptListener): () => void { this.transcriptListeners.add(listener); return () => this.transcriptListeners.delete(listener); }
   public subscribeTranscriptionStatus(listener: TranscriptionStatusListener): () => void { this.transcriptionStatusListeners.add(listener); return () => this.transcriptionStatusListeners.delete(listener); }
   public setConversationMode(enabled: boolean, paused = false): boolean { this.conversationEnabled = enabled; this.conversationPaused = paused; return this.sendConversationConfig(); }
+  public configureAudioStream(config: AudioStreamConfig): boolean { this.audioConfig = config; return this.sendAudioConfig(); }
+  public sendAudioFrame(frame: ArrayBuffer): boolean { if (!this.socket || this.socket.readyState !== 1 || !this.audioConfig) return false; this.socket.send(frame); return true; }
 
   /** Save the desired live-engine threshold and apply it on this or the next connection. */
   public setDetectionSensitivity(sensitivity: LiveDetectionSensitivity): boolean {
@@ -113,6 +117,7 @@ export class LiveSoundEventService {
       this.setState('connected');
       this.sendSensitivityConfig();
       this.sendConversationConfig();
+      this.sendAudioConfig();
     };
     socket.onmessage = (event) => {
       if (generation !== this.connectionGeneration) return;
@@ -157,6 +162,7 @@ export class LiveSoundEventService {
   }
 
   private sendConversationConfig(): boolean { if (!this.socket || this.socket.readyState !== 1) return false; this.socket.send(JSON.stringify({ type: 'conversation', enabled: this.conversationEnabled, paused: this.conversationPaused })); return true; }
+  private sendAudioConfig(): boolean { if (!this.socket || this.socket.readyState !== 1 || !this.audioConfig) return false; this.socket.send(JSON.stringify({ type: 'audio_config', ...this.audioConfig })); return true; }
 
   private parseTranscriptionStatus(data: unknown): TranscriptionStatus | null { if (typeof data !== 'string') return null; try { const value = JSON.parse(data) as { type?: unknown; status?: unknown }; return value.type === 'transcription_status' && (value.status === 'listening' || value.status === 'processing' || value.status === 'paused' || value.status === 'offline') ? value.status : null; } catch { return null; } }
 
@@ -164,7 +170,7 @@ export class LiveSoundEventService {
     if (typeof data !== 'string') return false;
     try {
       const message = JSON.parse(data) as { type?: unknown };
-      return message?.type === 'config_ack' || message?.type === 'config_error';
+      return message?.type === 'config_ack' || message?.type === 'config_error' || message?.type === 'audio_config_ack' || message?.type === 'audio_error';
     } catch {
       return false;
     }

@@ -131,6 +131,43 @@ def classify_live(
                 buffered = buffered[hop_frames:]
 
 
+def classify_audio_source(config: AudioConfig, source, *, on_event=None, stop_event=None, confidence_threshold=None) -> None:
+    """Run the existing classifier/tracker over an already-normalized AudioSource."""
+    from classifier import classify_window
+    from event_tracker import EventTracker, print_new_event
+    from localization import center_fallback
+    classifier, detection_filter = _classifier_components(config, threshold=confidence_threshold)
+    tracker = EventTracker(config)
+    window_frames = int(round(config.inference_window_seconds * source.sample_rate))
+    hop_frames = int(round(config.inference_hop_seconds * source.sample_rate))
+    buffered = np.empty((0, source.channels), dtype=np.float32)
+    last_metrics = time.monotonic()
+    fallback = center_fallback("client audio stream is mono")
+    source.start()
+    print(f"Classifying client PCM at {source.sample_rate} Hz mono.", flush=True)
+    try:
+        while stop_event is None or not stop_event.is_set():
+            try: block = source.read(timeout=1.0)
+            except __import__('queue').Empty: continue
+            buffered = np.concatenate((buffered, block), axis=0)
+            if time.monotonic() - last_metrics >= config.output_interval:
+                from audio_capture import calculate_metrics
+                metrics = calculate_metrics(block)
+                print(f"Client audio: RMS {metrics.combined_rms:.3f} Peak {metrics.peak:.3f} Buffer {len(buffered) / source.sample_rate:.2f}s", flush=True)
+                last_metrics = time.monotonic()
+            while len(buffered) >= window_frames:
+                window = buffered[:window_frames]
+                for detection in classify_window(classifier, detection_filter, window, source.sample_rate, config):
+                    event = tracker.observe(detection, fallback)
+                    if event is not None:
+                        print_new_event(event)
+                        if on_event is not None: on_event(event)
+                tracker.tick()
+                buffered = buffered[hop_frames:]
+            if len(buffered) > window_frames * 3: buffered = buffered[-window_frames * 2:]
+    finally: source.stop()
+
+
 def localization_test(config: AudioConfig) -> None:
     from audio_capture import LiveAudioCapture
     from localization import DirectionLocalizer, LocalizationUnavailable
@@ -208,6 +245,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--client-queue-size", type=int, default=32, help="events buffered per client")
     parser.add_argument("--transcription-model", default="tiny.en", help="local faster-whisper model")
     parser.add_argument("--transcription-window", type=float, default=3.0, metavar="SECONDS")
+    parser.add_argument("--source", choices=("microphone", "websocket"), default="microphone", help="audio source for --serve")
     return parser
 
 
@@ -254,7 +292,7 @@ def main() -> int:
         elif args.serve or args.send_test_event:
             from websocket_server import serve_engine
 
-            asyncio.run(serve_engine(config, test_event_only=args.send_test_event))
+            asyncio.run(serve_engine(config, test_event_only=args.send_test_event, source_kind=args.source))
         else:
             run_meter(config)
     except KeyboardInterrupt:

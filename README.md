@@ -66,27 +66,47 @@ export interface SoundEvent {
 
 ---
 
-## 🚀 Integrating Real-Time Microphone AI Detection
+## 🚀 Client microphone → remote AI
 
-To connect an on-device machine learning acoustic classifier (e.g. YAMNet, AudioSpectrogram, CoreML / TFLite / ONNX):
+The web client captures mono audio only after the user selects Live Mode. An
+`AudioWorklet` converts it to 16 kHz signed 16-bit little-endian PCM and sends
+binary frames over the same WebSocket that returns `SoundEvent` JSON. Raw audio
+is held only in bounded memory and is never written to History or AsyncStorage.
 
-1. Initialize your audio stream and classifier in a background service or hook.
-2. When a sound is classified, construct and emit a `SoundEvent`:
-   ```typescript
-   import { soundEventService } from '@/services/soundEventService';
+```text
+Expo client mic → audio_config + binary PCM → Python/YAMNet
+                                              ↓
+Map/History/Alerts ← SoundEvent JSON ← event tracker
+```
 
-   // Inside your audio classifier callback:
-   soundEventService.emit(
-     soundEventService.createSoundEvent({
-       soundType: detectedClass,     // mapped SoundType
-       direction: estimatedSector,   // multi-mic array direction
-       confidence: score,            // 0.0 - 1.0
-       intensity: rmsEnergy,         // 0.0 - 1.0
-       priority: isCritical ? 'critical' : 'normal',
-     })
-   );
-   ```
-3. All UI screens (Radar Map, Recent Sounds, History, Alerts, and Strobe) will immediately react with 0 changes needed to UI components.
+Start the remote-input engine:
+
+```bash
+cd audio-engine
+source .venv/bin/activate
+python main.py --serve --source websocket --host 0.0.0.0 --port 8765
+```
+
+In another terminal:
+
+```bash
+EXPO_PUBLIC_AUDIO_ENGINE_WS=ws://127.0.0.1:8765/events pnpm exec expo start --web
+```
+
+The existing server-side microphone fallback remains available:
+
+```bash
+cd audio-engine
+source .venv/bin/activate
+python main.py --serve --source microphone
+```
+
+Web production requires HTTPS plus a `wss://` engine URL. Native raw-PCM capture
+is isolated behind `nativeAudioStream.ts`, but Expo Go does not provide that
+native capability. Before an EAS iOS/Android build, select and install a raw-PCM
+capture module compatible with the pinned Expo SDK, implement that adapter, add
+its config plugin, then create a development build. Microphone usage descriptions
+and Android `RECORD_AUDIO` permission are already configured.
 
 ---
 

@@ -17,12 +17,14 @@ const features = [
 
 export default function MicrophoneScreen() {
   const router = useRouter();
-  const { loadDemoData, clearDemoData, demoModeEnabled, setIsLiveListening } = useSoundSight();
+  const { loadDemoData, clearDemoData, demoModeEnabled, setIsLiveListening, enableClientMicrophone } = useSoundSight();
   const { width } = useWindowDimensions();
   const contentWidth = Math.min(width - 40, 342);
   const enterApp = () => router.replace('/(app)/(tabs)/home');
-  const enterLive = () => {
+  const enterLive = async () => {
     if (demoModeEnabled) clearDemoData();
+    const granted = await enableClientMicrophone();
+    if (!granted) return;
     setIsLiveListening(true);
     enterApp();
   };

@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from config import AudioConfig
 from event_tracker import REQUIRED_FIELDS
 from websocket_server import SoundEventWebSocketServer, build_test_event
+from audio_sources import WebSocketAudioSource
 
 
 class WebSocketServerTests(unittest.IsolatedAsyncioTestCase):
@@ -103,6 +104,21 @@ class WebSocketServerTests(unittest.IsolatedAsyncioTestCase):
                 response = json.loads(await client.recv())
                 self.assertEqual(response, {"type": "config_error", "code": "invalid_config"})
             self.assertEqual(self.server.confidence_threshold.get(), self.config.min_confidence)
+
+    async def test_audio_config_binary_frame_and_disconnect_cleanup(self) -> None:
+        await self.server.stop()
+        source = WebSocketAudioSource()
+        self.server = SoundEventWebSocketServer(self.config, audio_source=source)
+        await self.server.start()
+        self.url = f"ws://127.0.0.1:{self.server.bound_port}/events"
+        async with websockets.connect(self.url) as client:
+            await client.send(json.dumps({"type":"audio_config","format":"pcm_s16le","sampleRate":16000,"channels":1}))
+            self.assertEqual(json.loads(await client.recv())["type"], "audio_config_ack")
+            await client.send(b"\x00\x00\xff\x7f")
+            await asyncio.sleep(0.01)
+            self.assertEqual(source.received_samples, 2)
+        await self.wait_for_clients(0)
+        self.assertTrue(source._queue.empty())
 
 
 if __name__ == "__main__":
