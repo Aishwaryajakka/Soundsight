@@ -5,6 +5,7 @@ import type {
   SoundPriority,
   SoundCategory,
 } from '../types/sound';
+import { supportedSound } from './supportedSoundCatalog';
 
 export interface DemoScenarioDefinition {
   id: string;
@@ -190,6 +191,8 @@ class SoundEventService {
     priority?: SoundPriority;
     angle?: number;
     decibels?: number;
+    soundLevelDbfs?: number;
+    loudness?: 'quiet' | 'moderate' | 'loud';
     distanceMeters?: number;
     category?: SoundCategory;
     iconName?: string;
@@ -207,7 +210,6 @@ class SoundEventService {
     const category = params.category || this.getSoundTypeCategory(soundType);
     const iconName = params.iconName || this.getSoundTypeIcon(soundType);
     const label = params.label || this.getSoundTypeLabel(soundType);
-    const decibels = params.decibels ?? Math.round(40 + intensity * 60);
 
     const event: SoundEvent = {
       id,
@@ -220,15 +222,17 @@ class SoundEventService {
       timestamp: Date.now(),
       isActive: true,
       angle,
-      decibels,
-      distanceMeters: params.distanceMeters ?? 2.5,
       timeAgo: 'Just now',
       category,
       iconName,
       description: params.description || `Detected ${label.toLowerCase()} in your surroundings.`,
-      frequencyHz: params.frequencyHz || 800,
-      waveContours: params.waveContours || [60, 80, 95, 75, 50],
     };
+    if (params.soundLevelDbfs !== undefined) event.soundLevelDbfs = params.soundLevelDbfs;
+    if (params.loudness !== undefined) event.loudness = params.loudness;
+    if (params.decibels !== undefined) event.decibels = params.decibels;
+    if (params.distanceMeters !== undefined) event.distanceMeters = params.distanceMeters;
+    if (params.frequencyHz !== undefined) event.frequencyHz = params.frequencyHz;
+    if (params.waveContours !== undefined) event.waveContours = params.waveContours;
 
     return event;
   }
@@ -301,98 +305,19 @@ class SoundEventService {
   }
 
   public getSoundTypeCategory(type: SoundType): SoundCategory {
-    switch (type) {
-      case 'alarm':
-      case 'siren':
-      case 'glass_breaking':
-        return 'safety';
-      case 'name_called':
-      case 'baby_crying':
-      case 'footsteps':
-        return 'speech';
-      case 'car_horn':
-        return 'outdoor';
-      case 'door_knock':
-      case 'doorbell':
-      case 'appliance_beep':
-      case 'dog_bark':
-      default:
-        return 'household';
-    }
+    return supportedSound(type)?.category ?? 'household';
   }
 
   public getSoundTypeDefaultPriority(type: SoundType): SoundPriority {
-    switch (type) {
-      case 'alarm':
-      case 'siren':
-      case 'glass_breaking':
-        return 'critical';
-      case 'door_knock':
-      case 'doorbell':
-      case 'dog_bark':
-      case 'car_horn':
-        return 'normal';
-      case 'name_called':
-      case 'appliance_beep':
-      case 'baby_crying':
-      case 'footsteps':
-      default:
-        return 'info';
-    }
+    return supportedSound(type)?.priority ?? 'info';
   }
 
   public getSoundTypeIcon(type: SoundType): string {
-    switch (type) {
-      case 'door_knock':
-        return 'DoorClosed';
-      case 'doorbell':
-        return 'Bell';
-      case 'name_called':
-        return 'Volume2';
-      case 'appliance_beep':
-        return 'Microwave';
-      case 'dog_bark':
-        return 'ShieldAlert';
-      case 'alarm':
-        return 'Flame';
-      case 'baby_crying':
-        return 'Baby';
-      case 'siren':
-        return 'Siren';
-      case 'car_horn':
-        return 'Car';
-      default:
-        return 'AlertCircle';
-    }
+    return supportedSound(type)?.iconName ?? 'AlertCircle';
   }
 
   public getSoundTypeLabel(type: SoundType): string {
-    switch (type) {
-      case 'door_knock':
-        return 'Door Knock';
-      case 'doorbell':
-        return 'Doorbell';
-      case 'name_called':
-        return 'Name Called';
-      case 'appliance_beep':
-        return 'Appliance Beep';
-      case 'dog_bark':
-        return 'Dog Bark';
-      case 'alarm':
-        return 'Alarm';
-      case 'baby_crying':
-        return 'Baby Crying';
-      case 'siren':
-        return 'Emergency Siren';
-      case 'car_horn':
-        return 'Car Horn';
-      case 'glass_breaking':
-        return 'Glass Breaking';
-      case 'footsteps':
-        return 'Footsteps';
-      default:
-        return 'Environmental Sound';
-    }
+    return supportedSound(type)?.label ?? 'Environmental Sound';
   }
 }
 

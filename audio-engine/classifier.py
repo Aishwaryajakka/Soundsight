@@ -31,6 +31,7 @@ class Detection:
     confidence: float
     intensity: float
     supporting_frames: int = 1
+    sound_level_dbfs: Optional[float] = None
 
 
 class ConfidenceThreshold:
@@ -80,6 +81,17 @@ def measured_intensity(samples: np.ndarray, reference_rms: float) -> float:
         return 0.0
     rms = float(np.sqrt(np.mean(np.square(audio.astype(np.float64, copy=False)))))
     return float(np.clip(rms / reference_rms, 0.0, 1.0))
+
+
+def measured_dbfs(samples: np.ndarray) -> Optional[float]:
+    """Return microphone-relative digital level; this is not calibrated dB SPL."""
+    audio = np.asarray(samples, dtype=np.float64)
+    if audio.size == 0:
+        return None
+    rms = float(np.sqrt(np.mean(np.square(audio))))
+    if rms <= 0.0:
+        return -120.0
+    return float(max(-120.0, min(0.0, 20.0 * np.log10(rms))))
 
 
 class YamNetClassifier:
@@ -145,6 +157,7 @@ class StableDetectionFilter:
         predictions: Iterable[MappedClass],
         intensity: float,
         now: Optional[float] = None,
+        sound_level_dbfs: Optional[float] = None,
     ) -> list[Detection]:
         timestamp = time.monotonic() if now is None else now
         by_type = {prediction.sound_type: prediction for prediction in predictions}
@@ -172,6 +185,7 @@ class StableDetectionFilter:
                         confidence=float(np.clip(smoothed, 0.0, 1.0)),
                         intensity=float(np.clip(intensity, 0.0, 1.0)),
                         supporting_frames=self.config.stable_windows,
+                        sound_level_dbfs=sound_level_dbfs,
                     )
                 )
                 self._last_emitted[sound_type] = timestamp
@@ -208,7 +222,7 @@ def classify_window(
     mono_16khz = resample_for_yamnet(original_channels, source_rate, config.model_sample_rate)
     predictions = classifier.predict(mono_16khz)
     intensity = measured_intensity(original_channels, config.intensity_reference_rms)
-    return detection_filter.update(predictions, intensity, now)
+    return detection_filter.update(predictions, intensity, now, measured_dbfs(original_channels))
 
 
 def print_detection(detection: Detection, localization: object = None) -> None:

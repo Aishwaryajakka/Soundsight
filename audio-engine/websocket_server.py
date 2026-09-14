@@ -17,6 +17,7 @@ from classifier import ConfidenceThreshold, Detection
 from config import AudioConfig
 from event_tracker import EventTracker, SoundEvent, validate_sound_event
 from localization import center_fallback
+from transcription import LocalTranscriber, TranscriptSegment, validate_transcript_segment
 
 
 @dataclass(eq=False)
@@ -35,6 +36,7 @@ class SoundEventWebSocketServer:
         config: AudioConfig,
         initial_event: Optional[SoundEvent] = None,
         confidence_threshold: Optional[ConfidenceThreshold] = None,
+        transcriber: Optional[LocalTranscriber] = None,
     ) -> None:
         config.validate()
         if initial_event is not None:
@@ -42,6 +44,7 @@ class SoundEventWebSocketServer:
         self.config = config
         self.initial_event = initial_event
         self.confidence_threshold = confidence_threshold or ConfidenceThreshold(config.min_confidence)
+        self.transcriber = transcriber
         self._clients: Set[_Client] = set()
         self._server: Optional[WebSocketServer] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
@@ -122,6 +125,14 @@ class SoundEventWebSocketServer:
         error = {"type": "config_error", "code": "invalid_config"}
         try:
             payload = json.loads(message) if isinstance(message, str) else None
+            if isinstance(payload, dict) and set(payload) == {"type", "enabled", "paused"} and payload["type"] == "conversation" and isinstance(payload["enabled"], bool) and isinstance(payload["paused"], bool):
+                if self.transcriber is None:
+                    response = {"type": "transcription_status", "status": "offline"}
+                else:
+                    self.transcriber.configure(payload["enabled"], payload["paused"])
+                    response = {"type": "transcription_status", "status": "paused" if payload["paused"] else "listening" if payload["enabled"] else "paused"}
+                await self._enqueue(client, json.dumps(response, separators=(",", ":")))
+                return
             if not isinstance(payload, dict) or set(payload) != {"type", "minConfidence"}:
                 raise ValueError
             value = payload["minConfidence"]
@@ -164,6 +175,9 @@ class SoundEventWebSocketServer:
 
     async def broadcast(self, event: SoundEvent) -> int:
         message = self._serialize(event)
+        return await self._broadcast_message(message)
+
+    async def _broadcast_message(self, message: str) -> int:
         clients = list(self._clients)
         await asyncio.gather(*(self._enqueue(client, message) for client in clients))
         return len(clients)
@@ -182,6 +196,19 @@ class SoundEventWebSocketServer:
                 print(f"WebSocket broadcast failed: {exc}")
 
         future.add_done_callback(report_failure)
+
+    def publish_transcript_threadsafe(self, segment: TranscriptSegment) -> None:
+        validate_transcript_segment(segment)
+        self._publish_payload_threadsafe(segment)
+
+    def publish_transcription_status_threadsafe(self, status: str) -> None:
+        if status not in {"listening", "processing", "paused", "offline"}: return
+        self._publish_payload_threadsafe({"type": "transcription_status", "status": status})
+
+    def _publish_payload_threadsafe(self, payload: object) -> None:
+        if self._loop is None or self._server is None: return
+        message = json.dumps(payload, separators=(",", ":"), allow_nan=False)
+        asyncio.run_coroutine_threadsafe(self._broadcast_message(message), self._loop)
 
     async def wait_for_client(self, timeout: Optional[float] = None) -> None:
         await asyncio.wait_for(self._client_connected.wait(), timeout=timeout)
@@ -209,12 +236,15 @@ async def serve_engine(config: AudioConfig, *, test_event_only: bool = False) ->
     """Run transport plus either the real engine worker or deterministic test mode."""
     initial_event = build_test_event(config) if test_event_only else None
     confidence_threshold = ConfidenceThreshold(config.min_confidence)
+    transcriber = LocalTranscriber(config.transcription_model, config.transcription_window_seconds)
     server = SoundEventWebSocketServer(
         config,
         initial_event=initial_event,
         confidence_threshold=confidence_threshold,
+        transcriber=transcriber,
     )
     await server.start()
+    transcriber.start(server.publish_transcript_threadsafe, server.publish_transcription_status_threadsafe)
     print(f"SoundSight WebSocket server listening at {server.url}")
     if config.websocket_host == "0.0.0.0":
         print(
@@ -227,6 +257,7 @@ async def serve_engine(config: AudioConfig, *, test_event_only: bool = False) ->
         try:
             await asyncio.Future()
         finally:
+            transcriber.stop()
             await server.stop()
         return
 
@@ -242,6 +273,7 @@ async def serve_engine(config: AudioConfig, *, test_event_only: bool = False) ->
             stop_event=stop_event,
             print_events=True,
             confidence_threshold=confidence_threshold,
+            on_audio_chunk=transcriber.submit,
         )
 
     task = asyncio.create_task(asyncio.to_thread(engine_worker))
@@ -249,4 +281,5 @@ async def serve_engine(config: AudioConfig, *, test_event_only: bool = False) ->
         await task
     finally:
         stop_event.set()
+        transcriber.stop()
         await server.stop()

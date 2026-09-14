@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AudioLines, Check, Eye, Settings, Vibrate, Volume2, X } from 'lucide-react-native';
+import { AudioLines, Check, Eye, Settings, Vibrate, X } from 'lucide-react-native';
 import { useSoundSight } from '@/context/SoundSightContext';
 import { ScreenArtwork } from '@/components/ScreenArtwork';
 import { SoundDetailModal } from '@/components/SoundDetailModal';
 import { SoundIcon } from '@/components/SoundIcon';
 import { shouldDisplayAlert } from '@/services/eventAlertPolicy';
 import type { SoundEvent } from '@/types/sound';
+import { BACKGROUND_ASSETS } from '@/services/backgroundAssets';
 
 export default function AlertsScreen() {
   const state = useSoundSight();
   const [preferencesVisible, setPreferencesVisible] = useState(false);
   const [selectedSound, setSelectedSound] = useState<SoundEvent | null>(null);
   const recentAlerts = state.soundHistory
-    .filter((sound) => shouldDisplayAlert(sound.priority))
+    .filter((sound) => shouldDisplayAlert(sound.priority) && (state.importantSounds.find((item) => item.soundType === sound.soundType)?.enabled ?? true))
     .slice(0, 20);
 
   const formatTimestamp = (timestamp: number) => {
@@ -28,7 +29,7 @@ export default function AlertsScreen() {
 
   return (
     <SafeAreaView className="flex-1 overflow-hidden bg-[#021E32]" edges={['top', 'left', 'right']}>
-      <ScreenArtwork source={require('../../../../assets/background-alerts.png')} />
+      <ScreenArtwork source={BACKGROUND_ASSETS.alerts} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
         <View className="h-14 flex-row items-center justify-between">
           <Text className="text-[28px] font-bold tracking-tight text-[#F7FBFD]">Alerts</Text>
@@ -66,7 +67,8 @@ export default function AlertsScreen() {
           })}
           {recentAlerts.length === 0 && (
             <View className="items-center rounded-xl border border-[#55C2E8]/10 bg-[#062C45]/45 py-6">
-              <Text className="text-[13px] text-[#A9C6D8]">No high-priority alerts.</Text>
+              <Text className="text-[13px] font-semibold text-[#C6E8F5]">No important alerts.</Text>
+              <Text className="mt-1 text-[11px] text-[#8BAABD]">High-priority sounds will appear here.</Text>
             </View>
           )}
         </View>
@@ -94,7 +96,6 @@ export default function AlertsScreen() {
               {[
                 { label: 'Visual Strobe', icon: Eye, enabled: state.visualAlertsEnabled, toggle: state.setVisualAlertsEnabled },
                 { label: 'Haptic Vibration', icon: Vibrate, enabled: state.hapticAlertsEnabled, toggle: state.setHapticAlertsEnabled },
-                { label: 'Spoken Announcements', icon: Volume2, enabled: state.spokenAlertsEnabled, toggle: state.setSpokenAlertsEnabled },
               ].map((item) => <Pressable key={item.label} onPress={() => item.toggle(!item.enabled)} className="h-14 flex-row items-center border-b border-[#55C2E8]/10"><item.icon size={19} color="#55C2E8" /><Text className="ml-3 flex-1 text-[15px] font-medium text-[#F7FBFD]">{item.label}</Text><View className={`h-7 w-12 rounded-full p-1 ${item.enabled ? 'bg-[#55C2E8]' : 'bg-[#6F93A8]'}`}><View className={`h-5 w-5 rounded-full bg-[#021E32] ${item.enabled ? 'translate-x-5' : ''}`} /></View></Pressable>)}
               <Text className="mb-2 mt-6 text-sm font-semibold text-[#55C2E8]">Important Sounds</Text>
               {state.importantSounds.map((sound) => <Pressable key={sound.id} onPress={() => state.toggleImportantSound(sound.id)} className="h-14 flex-row items-center border-b border-[#55C2E8]/10"><SoundIcon name={sound.iconName} soundType={sound.soundType} size={19} color="#C6E8F5" /><Text className="ml-3 flex-1 text-[15px] text-[#F7FBFD]">{sound.name}</Text><View className={`h-6 w-6 items-center justify-center rounded-md border ${sound.enabled ? 'border-[#55C2E8] bg-[#55C2E8]' : 'border-[#6F93A8]'}`}>{sound.enabled && <Check size={14} color="#021E32" />}</View></Pressable>)}

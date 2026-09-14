@@ -90,6 +90,7 @@ def classify_live(
     stop_event: threading.Event = None,
     print_events: bool = True,
     confidence_threshold=None,
+    on_audio_chunk=None,
 ) -> None:
     from audio_capture import LiveAudioCapture
     from classifier import classify_window
@@ -110,6 +111,8 @@ def classify_live(
             buffered = np.concatenate((buffered, capture.get_block()), axis=0)
             while len(buffered) >= window_frames:
                 original_window = buffered[:window_frames]
+                if on_audio_chunk is not None:
+                    on_audio_chunk(original_window[:hop_frames], config.sample_rate)
                 localization = (
                     localizer.process(original_window, config.sample_rate)
                     if localizer is not None
@@ -203,6 +206,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--port", type=int, default=8765, help="WebSocket bind port")
     parser.add_argument("--ws-path", default="/events", help="WebSocket path")
     parser.add_argument("--client-queue-size", type=int, default=32, help="events buffered per client")
+    parser.add_argument("--transcription-model", default="tiny.en", help="local faster-whisper model")
+    parser.add_argument("--transcription-window", type=float, default=3.0, metavar="SECONDS")
     return parser
 
 
@@ -232,6 +237,8 @@ def main() -> int:
             websocket_port=args.port,
             websocket_path=args.ws_path,
             websocket_client_queue_size=args.client_queue_size,
+            transcription_model=args.transcription_model,
+            transcription_window_seconds=args.transcription_window,
         )
         config.validate()
         if args.record_test is not None:

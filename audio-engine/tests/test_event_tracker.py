@@ -110,12 +110,12 @@ class EventTrackerTests(unittest.TestCase):
             self.assertIsInstance(event["timestamp"], int)
             validate_sound_event(event)
 
-    def test_voice_uses_supported_other_type_not_name_called(self) -> None:
+    def test_voice_uses_explicit_voice_type_not_name_called(self) -> None:
         tracker = EventTracker(self.config(), id_factory=lambda: "event-voice")
         event = tracker.observe(
             detection(sound_type="voice", label="Voice"), center_fallback("mono"), now=0.0, epoch_ms=1000
         )
-        self.assertEqual(event["soundType"], "other")
+        self.assertEqual(event["soundType"], "voice")
         self.assertEqual(event["label"], "Voice")
         self.assertNotEqual(event["soundType"], "name_called")
 

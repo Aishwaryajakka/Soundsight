@@ -1,6 +1,6 @@
 import type React from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
-import { Activity, Clock3, Compass, Gauge, X } from 'lucide-react-native';
+import { Activity, Clock3, Compass, Gauge, Volume2, X } from 'lucide-react-native';
 import { SoundIcon } from '@/components/SoundIcon';
 import { useSoundSight } from '@/context/SoundSightContext';
 import type { SoundEvent } from '@/types/sound';
@@ -21,10 +21,14 @@ export const SoundDetailModal: React.FC<SoundDetailModalProps> = ({ sound, visib
   const isCritical = sound.priority === 'critical';
   const category = typeof sound.category === 'string' ? titleCase(sound.category) : null;
   const description = typeof sound.description === 'string' && sound.description.trim() ? sound.description.trim() : null;
+  const soundLevel = typeof sound.soundLevelDbfs === 'number' && Number.isFinite(sound.soundLevelDbfs)
+    ? `${sound.loudness ? titleCase(sound.loudness) : 'Digital level'} · ${Math.round(sound.soundLevelDbfs)} dBFS`
+    : null;
   const details = [
     { label: 'Direction', value: titleCase(sound.direction), icon: Compass },
     ...(showConfidence ? [{ label: 'Confidence', value: normalizedPercentage(sound.confidence), icon: Activity }] : []),
     { label: 'Intensity', value: normalizedPercentage(sound.intensity), icon: Gauge },
+    ...(soundLevel ? [{ label: 'Sound Level', value: soundLevel, icon: Volume2 }] : []),
     { label: 'Detected', value: localTimestamp(sound.timestamp), icon: Clock3 },
   ];
 

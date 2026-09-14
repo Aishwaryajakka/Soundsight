@@ -26,6 +26,7 @@ SoundType = Literal[
     "glass_breaking",
     "siren",
     "footsteps",
+    "voice", "singing", "clapping", "whistling", "phone_ringing", "running_water", "vacuum", "vehicle",
     "custom",
     "other",
 ]
@@ -53,35 +54,43 @@ class SoundEvent(TypedDict):
     category: SoundCategory
     iconName: str
     description: str
+    soundLevelDbfs: float
+    loudness: Literal["quiet", "moderate", "loud"]
 
 
 VALID_SOUND_TYPES = {
     "door_knock", "doorbell", "name_called", "alarm", "appliance_beep", "dog_bark",
     "baby_crying", "car_horn", "glass_breaking", "siren", "footsteps", "custom", "other",
+    "voice", "singing", "clapping", "whistling", "phone_ringing", "running_water", "vacuum", "vehicle",
 }
 VALID_DIRECTIONS = {
     "front", "right", "left", "back", "front_right", "front_left", "back_right", "back_left",
 }
 VALID_PRIORITIES = {"critical", "high", "normal", "info"}
-VALID_CATEGORIES = {"safety", "speech", "household", "outdoor"}
+VALID_CATEGORIES = {"safety", "speech", "household", "outdoor", "people", "animals", "vehicles"}
 REQUIRED_FIELDS = {
     "id", "soundType", "label", "direction", "confidence", "intensity", "priority", "timestamp", "isActive",
 }
-ALLOWED_FIELDS = REQUIRED_FIELDS | {"angle", "category", "iconName", "description"}
+ALLOWED_FIELDS = REQUIRED_FIELDS | {"angle", "category", "iconName", "description", "soundLevelDbfs", "loudness"}
 
 PRIORITIES: Dict[str, SoundPriority] = {
     "alarm": "critical", "siren": "critical", "glass_breaking": "critical",
-    "door_knock": "normal", "doorbell": "normal", "dog_bark": "normal", "car_horn": "normal",
+    "baby_crying": "high", "car_horn": "high",
+    "door_knock": "normal", "doorbell": "normal", "dog_bark": "normal", "phone_ringing": "normal",
 }
 CATEGORIES: Dict[str, SoundCategory] = {
     "alarm": "safety", "siren": "safety", "glass_breaking": "safety",
-    "name_called": "speech", "baby_crying": "speech", "footsteps": "speech",
-    "car_horn": "outdoor",
+    "voice": "people", "singing": "people", "baby_crying": "people", "footsteps": "people",
+    "clapping": "people", "whistling": "people", "dog_bark": "animals",
+    "car_horn": "vehicles", "vehicle": "vehicles",
 }
 ICONS = {
-    "door_knock": "DoorClosed", "doorbell": "Bell", "name_called": "Volume2",
+    "door_knock": "DoorClosed", "doorbell": "Bell", "voice": "Volume2",
     "appliance_beep": "Microwave", "dog_bark": "ShieldAlert", "alarm": "Flame",
     "baby_crying": "Baby", "siren": "Siren", "car_horn": "Car",
+    "singing": "Music2", "clapping": "Hand", "whistling": "AudioLines",
+    "phone_ringing": "Phone", "running_water": "Droplets", "vacuum": "Wind",
+    "footsteps": "Footprints", "glass_breaking": "GlassWater", "vehicle": "Car",
 }
 DIRECTION_MAP = {
     "LEFT": ("left", 270.0), "CENTER": ("front", 0.0), "RIGHT": ("right", 90.0),
@@ -96,6 +105,7 @@ class _TrackedSound:
     supporting_frames: int = 0
     confidence: float = 0.0
     intensity: float = 0.0
+    sound_level_dbfs: Optional[float] = None
     first_seen: float = 0.0
     last_seen: float = 0.0
     cooldown_until: float = 0.0
@@ -123,6 +133,10 @@ def validate_sound_event(event: SoundEvent) -> None:
         raise ValueError("SoundEvent confidence and intensity must be between zero and one.")
     if not isinstance(event["timestamp"], int):
         raise ValueError("SoundEvent timestamp must be Unix epoch milliseconds as an integer.")
+    if "soundLevelDbfs" in event and not -120.0 <= event["soundLevelDbfs"] <= 0.0:
+        raise ValueError("SoundEvent soundLevelDbfs must be between -120 and zero.")
+    if "loudness" in event and event["loudness"] not in {"quiet", "moderate", "loud"}:
+        raise ValueError("SoundEvent loudness is invalid.")
 
 
 class EventTracker:
@@ -136,9 +150,7 @@ class EventTracker:
 
     @staticmethod
     def _frontend_sound_type(sound_type: str) -> SoundType:
-        # The current TypeScript union has no `voice`; retain an honest label but
-        # use its supported catch-all type. Never imply name recognition.
-        return "other" if sound_type == "voice" else sound_type  # type: ignore[return-value]
+        return sound_type if sound_type in VALID_SOUND_TYPES else "other"  # type: ignore[return-value]
 
     def _add_observation(
         self,
@@ -151,9 +163,12 @@ class EventTracker:
         if state.supporting_frames == 0:
             state.confidence = detection.confidence
             state.intensity = detection.intensity
+            state.sound_level_dbfs = detection.sound_level_dbfs
         else:
             state.confidence = alpha * detection.confidence + (1 - alpha) * state.confidence
             state.intensity = max(state.intensity, detection.intensity)
+            if detection.sound_level_dbfs is not None:
+                state.sound_level_dbfs = max(state.sound_level_dbfs or -120.0, detection.sound_level_dbfs)
         state.label = detection.label
         state.supporting_frames += max(1, detection.supporting_frames)
         state.last_seen = now
@@ -166,11 +181,8 @@ class EventTracker:
         direction_key = max(state.direction_votes, key=state.direction_votes.get)
         direction, angle = DIRECTION_MAP[direction_key]
         category: SoundCategory
-        if sound_type == "voice":
-            category = "speech"
-        else:
-            category = CATEGORIES.get(frontend_type, "household")
-        icon = "Volume2" if sound_type == "voice" else ICONS.get(frontend_type, "AlertCircle")
+        category = CATEGORIES.get(frontend_type, "household")
+        icon = ICONS.get(frontend_type, "AlertCircle")
         event: SoundEvent = {
             "id": state.event_id or self._id_factory(),
             "soundType": frontend_type,
@@ -186,6 +198,10 @@ class EventTracker:
             "iconName": icon,
             "description": f"{state.label} detected.",
         }
+        if state.sound_level_dbfs is not None:
+            level = round(float(np.clip(state.sound_level_dbfs, -120.0, 0.0)), 2)
+            event["soundLevelDbfs"] = level
+            event["loudness"] = "quiet" if level < -40 else "moderate" if level < -18 else "loud"
         validate_sound_event(event)
         return event
 
@@ -235,6 +251,7 @@ class EventTracker:
         state.supporting_frames = 0
         state.confidence = 0.0
         state.intensity = 0.0
+        state.sound_level_dbfs = None
         state.first_seen = 0.0
         state.last_seen = 0.0
         state.cooldown_until = 0.0

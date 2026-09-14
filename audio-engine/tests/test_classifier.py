@@ -10,12 +10,17 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from classifier import ConfidenceThreshold, StableDetectionFilter, classification_mono, measured_intensity
+from classifier import ConfidenceThreshold, StableDetectionFilter, classification_mono, measured_dbfs, measured_intensity
 from config import AudioConfig
 from label_mapper import MappedClass
 
 
 class ClassifierPipelineTests(unittest.TestCase):
+    def test_dbfs_is_microphone_relative_rms_level(self) -> None:
+        self.assertAlmostEqual(measured_dbfs(np.ones(16, dtype=np.float32)), 0.0)
+        self.assertAlmostEqual(measured_dbfs(np.full(16, 0.1, dtype=np.float32)), -20.0, places=4)
+        self.assertEqual(measured_dbfs(np.zeros(16, dtype=np.float32)), -120.0)
+
     def test_stereo_mix_does_not_modify_localization_channels(self) -> None:
         stereo = np.array([[0.2, 0.6], [-0.4, 0.2]], dtype=np.float32)
         preserved = stereo.copy()

@@ -27,8 +27,14 @@ class MappedClass:
 SOUNDSIGHT_MAPPINGS: Tuple[MappingDefinition, ...] = (
     MappingDefinition("door_knock", "Door Knock", ("Knock",)),
     MappingDefinition("doorbell", "Doorbell", ("Doorbell", "Ding-dong")),
-    MappingDefinition("dog_bark", "Dog Bark", ("Bark", "Dog")),
+    MappingDefinition("dog_bark", "Dog Bark", ("Bark",)),
     MappingDefinition("voice", "Voice", ("Speech", "Conversation", "Narration, monologue")),
+    MappingDefinition("singing", "Singing", ("Singing",)),
+    MappingDefinition("clapping", "Clapping", ("Clapping",)),
+    MappingDefinition("whistling", "Whistling", ("Whistling",)),
+    MappingDefinition("phone_ringing", "Phone Ringing", ("Telephone bell ringing", "Ringtone")),
+    MappingDefinition("running_water", "Running Water", ("Water", "Water tap, faucet")),
+    MappingDefinition("vacuum", "Vacuum", ("Vacuum cleaner",)),
     MappingDefinition("alarm", "Alarm", ("Alarm", "Alarm clock", "Smoke detector, smoke alarm", "Fire alarm")),
     MappingDefinition("appliance_beep", "Appliance Beep", ("Beep, bleep", "Buzzer", "Microwave oven")),
     MappingDefinition("baby_crying", "Baby Crying", ("Baby cry, infant cry",)),
@@ -36,6 +42,7 @@ SOUNDSIGHT_MAPPINGS: Tuple[MappingDefinition, ...] = (
     MappingDefinition("glass_breaking", "Glass Breaking", ("Breaking", "Shatter"), ("Glass",)),
     MappingDefinition("siren", "Siren", ("Siren", "Civil defense siren")),
     MappingDefinition("footsteps", "Footsteps", ("Walk, footsteps",)),
+    MappingDefinition("vehicle", "Car / Vehicle", ("Vehicle", "Car")),
 )
 
 

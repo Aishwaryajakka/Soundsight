@@ -9,12 +9,13 @@ import type {
 const SOUND_TYPES = new Set<SoundType>([
   'door_knock', 'doorbell', 'name_called', 'alarm', 'appliance_beep', 'dog_bark',
   'baby_crying', 'car_horn', 'glass_breaking', 'siren', 'footsteps', 'custom', 'other',
+  'voice', 'singing', 'clapping', 'whistling', 'phone_ringing', 'running_water', 'vacuum', 'vehicle',
 ]);
 const DIRECTIONS = new Set<SoundDirection>([
   'front', 'right', 'left', 'back', 'front_right', 'front_left', 'back_right', 'back_left',
 ]);
 const PRIORITIES = new Set<SoundPriority>(['critical', 'high', 'normal', 'info']);
-const CATEGORIES = new Set<SoundCategory>(['safety', 'speech', 'household', 'outdoor']);
+const CATEGORIES = new Set<SoundCategory>(['safety', 'speech', 'household', 'outdoor', 'people', 'animals', 'vehicles']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -59,9 +60,11 @@ export function parseSoundEvent(message: unknown): SoundEvent | null {
   const decibels = optionalFiniteNumber(payload, 'decibels');
   const distanceMeters = optionalFiniteNumber(payload, 'distanceMeters');
   const frequencyHz = optionalFiniteNumber(payload, 'frequencyHz');
+  const soundLevelDbfs = optionalFiniteNumber(payload, 'soundLevelDbfs');
   if (
     Number.isNaN(angle) || (angle !== undefined && (angle < 0 || angle > 360)) ||
-    Number.isNaN(decibels) || Number.isNaN(distanceMeters) ||
+    Number.isNaN(decibels) || Number.isNaN(soundLevelDbfs) ||
+    (soundLevelDbfs !== undefined && (soundLevelDbfs < -120 || soundLevelDbfs > 0)) || Number.isNaN(distanceMeters) ||
     (distanceMeters !== undefined && distanceMeters < 0) || Number.isNaN(frequencyHz) ||
     (frequencyHz !== undefined && frequencyHz < 0)
   ) return null;
@@ -84,6 +87,9 @@ export function parseSoundEvent(message: unknown): SoundEvent | null {
   if (decibels !== undefined) event.decibels = decibels;
   if (distanceMeters !== undefined) event.distanceMeters = distanceMeters;
   if (frequencyHz !== undefined) event.frequencyHz = frequencyHz;
+  if (soundLevelDbfs !== undefined) event.soundLevelDbfs = soundLevelDbfs;
+  if (payload.loudness === 'quiet' || payload.loudness === 'moderate' || payload.loudness === 'loud') event.loudness = payload.loudness;
+  else if (payload.loudness !== undefined) return null;
   if (category !== undefined) event.category = category as SoundCategory;
   if (typeof payload.timeAgo === 'string') event.timeAgo = payload.timeAgo;
   if (typeof payload.iconName === 'string') event.iconName = payload.iconName;

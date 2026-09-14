@@ -1,9 +1,13 @@
 import { soundEventService } from './soundEventService';
 import { parseSoundEvent } from './soundEventValidation';
+import { parseTranscriptMessage } from './transcriptStorage';
+import type { TranscriptSegment, TranscriptionStatus } from '@/types/transcript';
 
 export type LiveSoundConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 type ConnectionStateListener = (state: LiveSoundConnectionState) => void;
+type TranscriptListener = (segment: TranscriptSegment) => void;
+type TranscriptionStatusListener = (status: TranscriptionStatus) => void;
 type WebSocketFactory = (url: string) => WebSocket;
 
 const MAX_REMEMBERED_EVENT_IDS = 256;
@@ -32,6 +36,10 @@ export class LiveSoundEventService {
   private readonly seenEventIds = new Set<string>();
   private readonly seenEventOrder: string[] = [];
   private detectionSensitivity: LiveDetectionSensitivity = 'Medium';
+  private readonly transcriptListeners = new Set<TranscriptListener>();
+  private readonly transcriptionStatusListeners = new Set<TranscriptionStatusListener>();
+  private conversationEnabled = false;
+  private conversationPaused = false;
 
   constructor(
     private readonly url: string | undefined,
@@ -47,6 +55,10 @@ export class LiveSoundEventService {
     listener(this.state);
     return () => this.stateListeners.delete(listener);
   }
+
+  public subscribeTranscripts(listener: TranscriptListener): () => void { this.transcriptListeners.add(listener); return () => this.transcriptListeners.delete(listener); }
+  public subscribeTranscriptionStatus(listener: TranscriptionStatusListener): () => void { this.transcriptionStatusListeners.add(listener); return () => this.transcriptionStatusListeners.delete(listener); }
+  public setConversationMode(enabled: boolean, paused = false): boolean { this.conversationEnabled = enabled; this.conversationPaused = paused; return this.sendConversationConfig(); }
 
   /** Save the desired live-engine threshold and apply it on this or the next connection. */
   public setDetectionSensitivity(sensitivity: LiveDetectionSensitivity): boolean {
@@ -100,9 +112,14 @@ export class LiveSoundEventService {
       this.reconnectAttempt = 0;
       this.setState('connected');
       this.sendSensitivityConfig();
+      this.sendConversationConfig();
     };
     socket.onmessage = (event) => {
       if (generation !== this.connectionGeneration) return;
+      const transcript = parseTranscriptMessage(event.data);
+      if (transcript) { if (this.conversationEnabled && !this.conversationPaused) this.transcriptListeners.forEach((listener) => { listener(transcript); }); return; }
+      const status = this.parseTranscriptionStatus(event.data);
+      if (status) { this.transcriptionStatusListeners.forEach((listener) => { listener(status); }); return; }
       if (this.isControlResponse(event.data)) return;
       const soundEvent = parseSoundEvent(event.data);
       if (!soundEvent) {
@@ -138,6 +155,10 @@ export class LiveSoundEventService {
     }));
     return true;
   }
+
+  private sendConversationConfig(): boolean { if (!this.socket || this.socket.readyState !== 1) return false; this.socket.send(JSON.stringify({ type: 'conversation', enabled: this.conversationEnabled, paused: this.conversationPaused })); return true; }
+
+  private parseTranscriptionStatus(data: unknown): TranscriptionStatus | null { if (typeof data !== 'string') return null; try { const value = JSON.parse(data) as { type?: unknown; status?: unknown }; return value.type === 'transcription_status' && (value.status === 'listening' || value.status === 'processing' || value.status === 'paused' || value.status === 'offline') ? value.status : null; } catch { return null; } }
 
   private isControlResponse(data: unknown): boolean {
     if (typeof data !== 'string') return false;

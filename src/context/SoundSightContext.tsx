@@ -1,10 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import type React from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
+import type {
   SoundEvent,
-  SoundType,
   SoundCategory,
   SoundPriority,
   AlertTrigger,
@@ -14,7 +14,7 @@ import {
 } from '@/types/sound';
 import {
   soundEventService,
-  DemoScenarioDefinition,
+  type DemoScenarioDefinition,
   DEMO_SCENARIO_DEFINITIONS,
 } from '@/services/soundEventService';
 import {
@@ -26,6 +26,9 @@ import {
   SoundHistoryStorage,
 } from '@/services/soundHistoryStorage';
 import { acceptUniqueEventId, hapticActionForPriority } from '@/services/eventAlertPolicy';
+import { TranscriptStorage, normalizeTranscripts } from '@/services/transcriptStorage';
+import type { TranscriptSegment, TranscriptionStatus } from '@/types/transcript';
+import { createDemoSoundEvents, createDemoTranscripts, isDemoRecordId } from '@/services/demoData';
 import {
   DEFAULT_PERSISTENT_SOUND_SETTINGS,
   mapFadeDurationMs,
@@ -84,6 +87,17 @@ export interface SoundSightContextType {
   currentDecibelLevel: number;
   lastTriggeredSoundId: string | null;
   demoScenarios: DemoScenarioDefinition[];
+  testHaptic: () => void;
+  productMode: 'awareness' | 'conversation';
+  setProductMode: (mode: 'awareness' | 'conversation') => void;
+  transcripts: TranscriptSegment[];
+  transcriptionStatus: TranscriptionStatus;
+  conversationPaused: boolean;
+  setConversationPaused: (paused: boolean) => void;
+  clearTranscripts: () => void;
+  demoModeEnabled: boolean;
+  loadDemoData: () => void;
+  clearDemoData: () => void;
 }
 
 const INITIAL_SETTINGS: AppSettings = {
@@ -112,7 +126,10 @@ const INITIAL_IMPORTANT_SOUNDS: ImportantSoundSetting[] = [
 const SoundSightContext = createContext<SoundSightContextType | null>(null);
 const soundHistoryStorage = new SoundHistoryStorage(AsyncStorage);
 const soundSettingsStorage = new SoundSettingsStorage(AsyncStorage);
+const transcriptStorage = new TranscriptStorage(AsyncStorage);
 const MAX_HANDLED_EVENT_IDS = 256;
+// Normal operation starts empty. Part 3 owns any future explicit demo seeding behavior.
+const shouldSeedDemoData = () => false;
 
 export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [liveConnectionState, setLiveConnectionState] = useState<LiveSoundConnectionState>(
@@ -144,7 +161,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
 
   // Initial active sound events
-  const [activeSounds, setActiveSounds] = useState<SoundEvent[]>([
+  const [activeSounds, setActiveSounds] = useState<SoundEvent[]>(shouldSeedDemoData() ? [
     {
       id: 'event-door-knock',
       soundType: 'door_knock',
@@ -225,10 +242,10 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       frequencyHz: 2400,
       waveContours: [40, 60, 75, 50, 30],
     },
-  ]);
+  ] : []);
 
   // Initial history log
-  const [soundHistory, setSoundHistory] = useState<SoundEvent[]>([
+  const [soundHistory, setSoundHistory] = useState<SoundEvent[]>(shouldSeedDemoData() ? [
     {
       id: 'hist-1',
       soundType: 'door_knock',
@@ -343,7 +360,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       description: 'Approaching vehicle detected from the left.',
       frequencyHz: 680,
     },
-  ]);
+  ] : []);
   const historyRestored = useRef(false);
   const pendingHistoryEvents = useRef<SoundEvent[]>([]);
   const pendingHistoryDeletions = useRef(new Set<string>());
@@ -351,6 +368,46 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const handledEventIds = useRef(new Set<string>());
   const handledEventOrder = useRef<string[]>([]);
   const settingsRestored = useRef(false);
+  const [productMode, setProductMode] = useState<'awareness' | 'conversation'>('awareness');
+  const [transcripts, setTranscripts] = useState<TranscriptSegment[]>([]);
+  const [transcriptionStatus, setTranscriptionStatus] = useState<TranscriptionStatus>('offline');
+  const [conversationPaused, setConversationPaused] = useState(false);
+  const [demoModeEnabled, setDemoModeEnabled] = useState(false);
+  const transcriptsRestored = useRef(false);
+  const transcriptsClearedDuringRestore = useRef(false);
+
+  useEffect(() => { void transcriptStorage.load().then((stored) => { setTranscripts((current) => { const restored = transcriptsClearedDuringRestore.current ? [] : normalizeTranscripts([...stored, ...current]); void transcriptStorage.save(restored); return restored; }); transcriptsRestored.current = true; }); }, []);
+  useEffect(() => liveSoundEventService.subscribeTranscripts((segment) => {
+    setTranscripts((current) => { const next = normalizeTranscripts([...current.filter((item) => item.id !== segment.id), segment]); if (segment.isFinal) void transcriptStorage.save(next); return next; });
+  }), []);
+  useEffect(() => liveSoundEventService.subscribeTranscriptionStatus(setTranscriptionStatus), []);
+  useEffect(() => { liveSoundEventService.setConversationMode(productMode === 'conversation', conversationPaused); if (productMode !== 'conversation') setConversationPaused(false); }, [productMode, conversationPaused]);
+
+  const clearTranscripts = useCallback(() => { if (!transcriptsRestored.current) transcriptsClearedDuringRestore.current = true; setTranscripts([]); void transcriptStorage.clear(); }, []);
+
+  const clearDemoData = useCallback(() => {
+    setDemoModeEnabled(false);
+    setIsLiveListening(true);
+    setActiveSounds((current) => current.filter((event) => !isDemoRecordId(event.id)));
+    setSoundHistory((current) => current.filter((event) => !isDemoRecordId(event.id)));
+    setTranscripts((current) => current.filter((segment) => !isDemoRecordId(segment.id)));
+    setSelectedSound((current) => current && isDemoRecordId(current.id) ? null : current);
+    liveSoundEventService.start();
+  }, []);
+
+  const loadDemoData = useCallback(() => {
+    const demoEvents = createDemoSoundEvents();
+    const demoTranscripts = createDemoTranscripts();
+    setDemoModeEnabled(true);
+    setIsLiveListening(false);
+    liveSoundEventService.stop();
+    setSoundHistory((current) => mergeSoundHistory(demoEvents, current));
+    setActiveSounds((current) => [
+      ...demoEvents.filter((event) => event.isActive),
+      ...current.filter((event) => !isDemoRecordId(event.id)),
+    ].slice(0, 4));
+    setTranscripts((current) => normalizeTranscripts([...current, ...demoTranscripts]));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -440,6 +497,11 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     },
     [hapticAlertsEnabled, alertPriority]
   );
+
+  const testHaptic = useCallback(() => {
+    if (Platform.OS === 'web') return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
+  }, []);
 
   /**
    * Centralized sound event ingestion
@@ -660,6 +722,17 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       currentDecibelLevel,
       lastTriggeredSoundId,
       demoScenarios: DEMO_SCENARIO_DEFINITIONS,
+      testHaptic,
+      productMode,
+      setProductMode,
+      transcripts,
+      transcriptionStatus: liveConnectionState === 'connected' ? transcriptionStatus : 'offline',
+      conversationPaused,
+      setConversationPaused,
+      clearTranscripts,
+      demoModeEnabled,
+      loadDemoData,
+      clearDemoData,
     }),
     [
       liveConnectionState,
@@ -698,6 +771,15 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       dismissStrobe,
       currentDecibelLevel,
       lastTriggeredSoundId,
+      testHaptic,
+      productMode,
+      transcripts,
+      transcriptionStatus,
+      conversationPaused,
+      clearTranscripts,
+      demoModeEnabled,
+      loadDemoData,
+      clearDemoData,
     ]
   );
 

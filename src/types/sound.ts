@@ -1,4 +1,4 @@
-export type SoundCategory = 'safety' | 'speech' | 'household' | 'outdoor';
+export type SoundCategory = 'safety' | 'speech' | 'household' | 'outdoor' | 'people' | 'animals' | 'vehicles';
 
 export type SoundType =
   | 'door_knock'
@@ -12,6 +12,14 @@ export type SoundType =
   | 'glass_breaking'
   | 'siren'
   | 'footsteps'
+  | 'voice'
+  | 'singing'
+  | 'clapping'
+  | 'whistling'
+  | 'phone_ringing'
+  | 'running_water'
+  | 'vacuum'
+  | 'vehicle'
   | 'custom'
   | 'other';
 
@@ -39,6 +47,9 @@ export interface SoundEvent {
   direction: SoundDirection;
   confidence: number; // 0.0 to 1.0 (e.g. 0.96)
   intensity: number; // 0.0 to 1.0 (e.g. 0.82)
+  /** Microphone-relative digital level; not calibrated environmental dB SPL. */
+  soundLevelDbfs?: number;
+  loudness?: 'quiet' | 'moderate' | 'loud';
   priority: SoundPriority; // 'critical' | 'high' | 'normal' | 'info'
   timestamp: number; // Unix epoch timestamp in milliseconds (Date.now())
   isActive: boolean;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import * as Sentry from '@sentry/react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SoundSightProvider, useSoundSight } from '@/context/SoundSightContext';
 import { StrobeOverlay } from '@/components/StrobeOverlay';
 import '../global.css';
+import { preloadBackgroundAssets } from '@/services/backgroundAssets';
 
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
@@ -24,6 +25,7 @@ function RootAppContent() {
         <Stack.Screen name="microphone" />
         <Stack.Screen name="recent" />
         <Stack.Screen name="about" />
+        <Stack.Screen name="info/[slug]" />
         <Stack.Screen name="(app)" />
       </Stack>
       <StrobeOverlay active={isStrobeActive} onDismiss={dismissStrobe} />
@@ -33,6 +35,10 @@ function RootAppContent() {
 }
 
 const RootLayout: React.FC = () => {
+  useEffect(() => {
+    void preloadBackgroundAssets().catch(() => undefined);
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#021E32' }}>
       <View

@@ -4,6 +4,7 @@ import {
   Text,
   ScrollView,
   Pressable,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, type RelativePathString } from 'expo-router';
@@ -35,6 +36,13 @@ export default function MapScreen() {
     showConfidence,
     showSoundIntensity,
     keepEventsVisibleDuration,
+    productMode,
+    setProductMode,
+    transcripts,
+    transcriptionStatus,
+    conversationPaused,
+    setConversationPaused,
+    clearTranscripts,
   } = useSoundSight();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -87,6 +95,12 @@ export default function MapScreen() {
           connectionState={liveConnectionState}
           onToggleListening={toggleListening}
         />
+
+        <View className="mb-2 mt-1 h-10 flex-row rounded-xl border border-[#55C2E8]/20 bg-[#062C45] p-1">
+          {(['awareness', 'conversation'] as const).map((mode) => <Pressable key={mode} onPress={() => setProductMode(mode)} className={`flex-1 items-center justify-center rounded-lg ${productMode === mode ? 'bg-[#55C2E8]' : ''}`}><Text className={`text-[13px] font-semibold ${productMode === mode ? 'text-[#021E32]' : 'text-[#A9C6D8]'}`}>{mode === 'awareness' ? 'Awareness' : 'Conversation'}</Text></Pressable>)}
+        </View>
+
+        {productMode === 'awareness' ? <>
 
         {/* 2. HERO SPATIAL SOUND MAP */}
         <View className="relative my-1 items-center justify-center">
@@ -145,7 +159,7 @@ export default function MapScreen() {
 
           {recentSounds.length === 0 ? (
             <View className="py-6 items-center">
-              <Text className="text-sm text-[#C6E8F5]">No recent sound events recorded.</Text>
+              <Text className="text-sm text-[#C6E8F5]">No recent sounds.</Text>
             </View>
           ) : (
             <View>
@@ -173,6 +187,19 @@ export default function MapScreen() {
             </View>
           )}
         </View>
+        </> : <View className="min-h-[570px]">
+          <View className="mt-3 flex-row items-center justify-between"><Text className="text-2xl font-bold text-[#F7FBFD]">Conversation Mode</Text><View className="rounded-full border border-[#55C2E8]/25 bg-[#062C45] px-3 py-1.5"><Text className="text-xs font-semibold capitalize text-[#55C2E8]">{conversationPaused ? 'Paused' : transcriptionStatus}</Text></View></View>
+          <Text className="mb-3 mt-7 text-[13px] font-bold tracking-[2px] text-[#55C2E8]">LIVE CAPTIONS</Text>
+          <ScrollView className="h-[330px] rounded-2xl border border-[#55C2E8]/15 bg-[#062C45]/85 p-4" nestedScrollEnabled>
+            {transcripts.length === 0 ? <View className="h-[285px] items-center justify-center"><Text className="text-center text-base font-semibold text-[#C6E8F5]">No conversation yet.</Text><Text className="mt-2 text-center text-sm text-[#8BAABD]">Start listening to see live captions.</Text></View> : transcripts.slice(-8).map((segment, index, visible) => <View key={segment.id} className={`${index > 0 ? 'mt-5' : ''}`}><Text className={`${index === visible.length - 1 ? 'text-[22px] font-semibold leading-8 text-[#F7FBFD]' : 'text-[16px] leading-6 text-[#8BAABD]'}`}>{segment.text}</Text></View>)}
+          </ScrollView>
+          <View className="mt-4 flex-row gap-2">
+            <Pressable onPress={() => setConversationPaused(!conversationPaused)} className="h-11 flex-1 items-center justify-center rounded-xl border border-[#55C2E8]/30"><Text className="text-sm font-semibold text-[#C6E8F5]">{conversationPaused ? 'Resume' : 'Pause'}</Text></Pressable>
+            <Pressable onPress={() => Alert.alert('Clear transcripts?', 'This removes all locally stored caption text.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Clear', style: 'destructive', onPress: clearTranscripts }])} className="h-11 flex-1 items-center justify-center rounded-xl border border-[#55C2E8]/30"><Text className="text-sm font-semibold text-[#C6E8F5]">Clear</Text></Pressable>
+            <Pressable onPress={() => setProductMode('awareness')} className="h-11 flex-[1.35] items-center justify-center rounded-xl bg-[#55C2E8]"><Text className="text-sm font-bold text-[#021E32]">End Conversation</Text></Pressable>
+          </View>
+          <Text className="mt-5 text-center text-[11px] leading-4 text-[#8BAABD]">Transcripts stay on this device and are automatically deleted after 7 days.</Text>
+        </View>}
       </ScrollView>
 
       {/* Sound Detail Modal */}

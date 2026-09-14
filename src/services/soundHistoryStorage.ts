@@ -1,5 +1,6 @@
 import type { SoundEvent } from '../types/sound';
 import { parseSoundEvent } from './soundEventValidation';
+import { isDemoRecordId } from './demoData';
 
 export const SOUND_HISTORY_STORAGE_KEY = 'soundsight.sound-history.v1';
 export const MAX_SOUND_HISTORY_EVENTS = 200;
@@ -42,7 +43,7 @@ export class SoundHistoryStorage {
     try {
       const serialized = await this.storage.getItem(SOUND_HISTORY_STORAGE_KEY);
       if (serialized === null) return null;
-      return normalizeSoundHistory(JSON.parse(serialized));
+      return normalizeSoundHistory(JSON.parse(serialized)).filter((event) => !isDemoRecordId(event.id));
     } catch (error) {
       console.warn('Unable to restore SoundSight history; starting with an empty history.', error);
       return [];
@@ -50,7 +51,7 @@ export class SoundHistoryStorage {
   }
 
   public async save(events: SoundEvent[]): Promise<void> {
-    const serialized = JSON.stringify(normalizeSoundHistory(events));
+    const serialized = JSON.stringify(normalizeSoundHistory(events).filter((event) => !isDemoRecordId(event.id)));
     this.writeQueue = this.writeQueue
       .catch(() => undefined)
       .then(() => this.storage.setItem(SOUND_HISTORY_STORAGE_KEY, serialized));

@@ -12,4 +12,5 @@ expo-env.d.ts
 # @end expo-cli
 .vercel
 .venv/
+audio-engine/models/
 .vscode/

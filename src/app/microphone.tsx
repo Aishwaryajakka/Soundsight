@@ -5,6 +5,8 @@ import { AudioLines, Bell, ChevronLeft, LockKeyhole, MapPin, UserRound } from 'l
 import { ScreenArtwork } from '@/components/ScreenArtwork';
 import { SoundSightMark } from '@/components/branding/SoundSightMark';
 import { SoundSightWordmark } from '@/components/branding/SoundSightWordmark';
+import { useSoundSight } from '@/context/SoundSightContext';
+import { BACKGROUND_ASSETS } from '@/services/backgroundAssets';
 
 const features = [
   { label: 'Detects important sounds', icon: AudioLines },
@@ -15,13 +17,18 @@ const features = [
 
 export default function MicrophoneScreen() {
   const router = useRouter();
+  const { loadDemoData } = useSoundSight();
   const { width } = useWindowDimensions();
   const contentWidth = Math.min(width - 40, 342);
   const enterApp = () => router.replace('/(app)/(tabs)/home');
+  const enterDemo = () => {
+    loadDemoData();
+    enterApp();
+  };
 
   return (
     <SafeAreaView className="flex-1 overflow-hidden bg-[#021E32]">
-      <ScreenArtwork source={require('../../assets/background-microphone.png')} />
+      <ScreenArtwork source={BACKGROUND_ASSETS.microphone} />
       <Pressable accessibilityLabel="Back to welcome" onPress={() => router.replace('/')} className="absolute left-3 top-1 z-20 h-11 w-11 items-center justify-center"><ChevronLeft size={27} color="#C6E8F5" strokeWidth={1.8} /></Pressable>
       <ScrollView className="z-10 flex-1" contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28 }} showsVerticalScrollIndicator={false} bounces={false}>
         <View className="items-center">
@@ -35,7 +42,7 @@ export default function MicrophoneScreen() {
         </View>
         <View className="mx-auto mt-5" style={{ width: contentWidth }}>
           <Pressable accessibilityRole="button" onPress={enterApp} className="h-12 flex-row items-center justify-center rounded-2xl bg-[#55C2E8]"><Text className="text-[15px] font-semibold text-[#021E32]">Allow Microphone Access</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={enterApp} className="mt-[10px] h-11 items-center justify-center rounded-2xl border-[1.5px] border-[#35C8F2]"><Text className="text-[14px] font-semibold text-[#48D0F5]">Continue in Demo Mode</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={enterDemo} className="mt-[10px] h-11 items-center justify-center rounded-2xl border-[1.5px] border-[#35C8F2]"><Text className="text-[14px] font-semibold text-[#48D0F5]">Continue in Demo Mode</Text></Pressable>
           <View className="mt-4 flex-row items-start justify-center px-5"><LockKeyhole size={19} color="#7BB7D1" strokeWidth={1.8} /><Text className="ml-3 text-[12px] leading-[16px] text-[#A9C6D8]"><Text className="font-semibold text-[#C6E8F5]">Your privacy matters.{`\n`}</Text>You can change this anytime{`\n`}in Settings.</Text></View>
         </View>
       </ScrollView>

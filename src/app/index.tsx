@@ -1,7 +1,8 @@
 import { Image, ImageBackground, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useRouter, type RelativePathString } from 'expo-router';
+import { BACKGROUND_ASSETS } from '@/services/backgroundAssets';
 
-const backgroundArtwork = require('../../assets/splash-background-final.png');
+const backgroundArtwork = BACKGROUND_ASSETS.splash;
 const brandArtwork = require('../../assets/SoundSightLogo.png');
 
 export default function LandingScreen() {

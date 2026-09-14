@@ -1,4 +1,4 @@
-import React from 'react';
+import type React from 'react';
 import {
   Bell,
   DoorClosed,
@@ -14,8 +14,18 @@ import {
   Radio,
   Sparkles,
   Zap,
+  Phone,
+  Droplets,
+  Wind,
+  Music2,
+  Footprints,
+  Hand,
+  AudioLines,
+  Dog,
+  GlassWater,
+  CarFront,
 } from 'lucide-react-native';
-import { SoundType } from '@/types/sound';
+import type { SoundType } from '@/types/sound';
 
 interface SoundIconProps {
   name?: string;
@@ -31,7 +41,7 @@ export const SoundIcon: React.FC<SoundIconProps> = ({
   size = 20,
   color = '#55C2E8',
 }) => {
-  const identifier = (soundType || name || '').toLowerCase().replace(/[-_]/g, '');
+  const identifier = (name || soundType || '').toLowerCase().replace(/[-_]/g, '');
 
   switch (identifier) {
     case 'bell':
@@ -56,6 +66,34 @@ export const SoundIcon: React.FC<SoundIconProps> = ({
     case 'carapproaching':
     case 'vehicle':
       return <Car size={size} color={color} />;
+    case 'phone':
+    case 'phoneringing':
+      return <Phone size={size} color={color} />;
+    case 'droplets':
+    case 'runningwater':
+      return <Droplets size={size} color={color} />;
+    case 'wind':
+    case 'vacuum':
+      return <Wind size={size} color={color} />;
+    case 'music2':
+    case 'singing':
+      return <Music2 size={size} color={color} />;
+    case 'footprints':
+    case 'footsteps':
+      return <Footprints size={size} color={color} />;
+    case 'hand':
+    case 'clapping':
+      return <Hand size={size} color={color} />;
+    case 'audiolines':
+    case 'whistling':
+      return <AudioLines size={size} color={color} />;
+    case 'dog':
+      return <Dog size={size} color={color} />;
+    case 'glasswater':
+    case 'glassbreaking':
+      return <GlassWater size={size} color={color} />;
+    case 'carfront':
+      return <CarFront size={size} color={color} />;
     case 'flame':
     case 'fire':
     case 'smoke':

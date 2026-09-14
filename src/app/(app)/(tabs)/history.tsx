@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, Trash2, X } from 'lucide-react-native';
 import { SoundDetailModal } from '@/components/SoundDetailModal';
 import { SoundIcon } from '@/components/SoundIcon';
+import { SoundActivityGraph } from '@/components/SoundActivityGraph';
 import { useSoundSight } from '@/context/SoundSightContext';
 import { filterSoundHistory } from '@/services/soundHistorySearch';
 import type { SoundEvent } from '@/types/sound';
@@ -84,6 +85,8 @@ export default function HistoryScreen() {
           </View>
         )}
 
+        <SoundActivityGraph events={soundHistory} />
+
         {sections.map((section) => (
           <View key={section.title} className="mb-3">
             <Text className="mb-1.5 text-[13px] font-semibold text-[#35C8F2]">{section.title}</Text>
@@ -102,7 +105,7 @@ export default function HistoryScreen() {
           </View>
         ))}
 
-        {sections.length === 0 && <View className="items-center py-16"><Text className="text-sm text-[#A9C6D8]">{soundHistory.length === 0 ? 'No sounds detected yet' : 'No matching sounds'}</Text></View>}
+        {sections.length === 0 && <View className="items-center py-12"><Text className="text-sm font-semibold text-[#C6E8F5]">{soundHistory.length === 0 ? 'No sounds detected yet.' : 'No matching sounds'}</Text>{soundHistory.length === 0 && <Text className="mt-1 text-xs text-[#8BAABD]">Detected sounds will appear here.</Text>}</View>}
       </ScrollView>
 
       <SoundDetailModal sound={selectedSound} visible={Boolean(selectedSound)} onClose={() => setSelectedSound(null)} />

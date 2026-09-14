@@ -43,6 +43,8 @@ class AudioConfig:
     websocket_client_queue_size: int = 32
     websocket_ping_interval_seconds: float = 20.0
     websocket_ping_timeout_seconds: float = 20.0
+    transcription_model: str = "tiny.en"
+    transcription_window_seconds: float = 3.0
 
     def validate(self) -> None:
         if self.device is not None and self.device < 0:
@@ -101,3 +103,5 @@ class AudioConfig:
             raise ValueError("WebSocket client queue size must be at least one.")
         if self.websocket_ping_interval_seconds <= 0 or self.websocket_ping_timeout_seconds <= 0:
             raise ValueError("WebSocket heartbeat values must be greater than zero.")
+        if not self.transcription_model or self.transcription_window_seconds < 1.0:
+            raise ValueError("Transcription model is required and its window must be at least one second.")
