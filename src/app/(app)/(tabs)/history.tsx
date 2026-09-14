@@ -100,7 +100,7 @@ export default function HistoryScreen() {
                   <Pressable accessibilityRole="button" accessibilityLabel={`${sound.label}, ${formatDirection(sound.direction)}${occurrence.count > 1 ? `, detected ${occurrence.count} times` : ''}${showConfidence ? `, ${confidence} percent average confidence` : ''}`} onPress={() => setSelectedSound(sound)} className="flex-1 flex-row items-center">
                     <View className="h-10 w-10 items-center justify-center rounded-[10px] bg-[#0A3B59]"><SoundIcon name={sound.iconName} soundType={sound.soundType} size={20} color="#E4F7FD" /></View>
                     <View className="ml-3 flex-1"><Text className="text-[13px] font-semibold text-[#F7FBFD]">{sound.label}</Text><Text className="mt-0.5 text-[11px] text-[#A9C6D8]">{formatDirection(sound.direction)}{occurrence.count > 1 ? ` · detected ${occurrence.count} times` : ''} · {formatHistoryTime(sound.timestamp)}</Text></View>
-                    {showConfidence && <Text className="ml-3 text-[15px] font-medium text-[#F7FBFD]">{confidence}%</Text>}
+                    {showConfidence && <Text className="ml-3 text-right text-[12px] font-medium text-[#F7FBFD]">{occurrence.count > 1 ? 'Avg ' : ''}{confidence}%</Text>}
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${sound.label} occurrence`} onPress={() => occurrence.eventIds.forEach(deleteHistoryItem)} className="ml-1 h-10 w-8 items-center justify-center"><Trash2 size={15} color="#6F93A8" /></Pressable>
                   </View>

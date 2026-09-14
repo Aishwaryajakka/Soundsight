@@ -21,7 +21,7 @@ const statusPresentation = (state: LiveSoundConnectionState) => {
     case 'error':
       return { label: 'AI Offline', accessibilityLabel: 'Live AI is offline. Demo Mode is available.' };
     default:
-      return { label: 'Disconnected', accessibilityLabel: 'Live AI disconnected. Reconnection will be attempted.' };
+      return { label: 'AI Offline', accessibilityLabel: 'Live AI disconnected. Reconnection will be attempted.' };
   }
 };
 
@@ -33,7 +33,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onLogoPress,
 }) => {
   const status = operatingMode === 'demo'
-    ? { label: 'Demo', accessibilityLabel: 'Demo mode. Showing deterministic sample data.' }
+    ? { label: 'Demo Mode', accessibilityLabel: 'Demo mode. Showing deterministic sample data.' }
     : connectionState ? statusPresentation(connectionState) : null;
   const label = status?.label ?? (listening ? 'Listening…' : 'Paused');
   const accessibilityLabel = status?.accessibilityLabel ??

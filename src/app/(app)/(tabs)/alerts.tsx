@@ -47,21 +47,19 @@ export default function AlertsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`${critical ? 'Critical' : 'High priority'} ${sound.label} detected, ${sound.direction}${state.showConfidence ? `, ${confidence} percent confidence` : ''}`}
                 onPress={() => setSelectedSound(sound)}
-                className={`min-h-[62px] flex-row items-center rounded-xl border px-2.5 ${critical ? 'border-[#FF7A7E]/55 bg-[#0A3049]' : 'border-[#55C2E8]/35 bg-[#062C45]/90'}`}
+                className={`min-h-[70px] flex-row items-center rounded-xl border px-2.5 ${critical ? 'border-[#FF7A7E]/55 bg-[#0A3049]' : 'border-[#55C2E8]/35 bg-[#062C45]/90'}`}
               >
                 <View className="h-10 w-10 items-center justify-center rounded-[10px] bg-[#0A3B59]">
                   <SoundIcon name={sound.iconName} soundType={sound.soundType} size={20} color="#E4F7FD" />
                 </View>
                 <View className="ml-3 flex-1">
-                  <View className="flex-row items-center gap-2">
-                    <Text className="text-[13px] font-semibold text-[#F7FBFD]">{sound.label} Detected</Text>
-                    <Text className={`text-[9px] font-bold uppercase tracking-wide ${critical ? 'text-[#FF9A9D]' : 'text-[#55C2E8]'}`}>{sound.priority}</Text>
-                  </View>
+                  <Text className="text-[13px] font-semibold text-[#F7FBFD]">{sound.label}</Text>
+                  <Text className={`mt-0.5 text-[10px] font-bold ${critical ? 'text-[#FF9A9D]' : 'text-[#55C2E8]'}`}>{critical ? 'Critical Alert' : 'High Priority Alert'}</Text>
                   <Text className="mt-0.5 text-[11px] capitalize text-[#A9C6D8]">
                     {sound.direction.replace('_', ' ')} · {formatTimestamp(sound.timestamp)}
                   </Text>
                 </View>
-                {state.showConfidence && <Text className="ml-3 text-[15px] font-medium text-[#F7FBFD]">{confidence}%</Text>}
+                {state.showConfidence && <View className="ml-3 items-end"><Text className="text-[9px] uppercase tracking-wide text-[#8BAABD]">Confidence</Text><Text className="mt-0.5 text-[15px] font-semibold text-[#F7FBFD]">{confidence}%</Text></View>}
               </Pressable>
             );
           })}
@@ -73,11 +71,11 @@ export default function AlertsScreen() {
           )}
         </View>
 
-        <View className="relative -mx-4 mt-2 h-[350px] overflow-hidden">
-          <View className="absolute inset-x-5 bottom-5 items-center rounded-[28px] border border-[#55C2E8]/10 bg-[#021E32]/75 px-8 py-5">
+        <View className="relative -mx-4 mt-1 h-[280px] overflow-hidden">
+          <View className="absolute inset-x-8 top-8 items-center rounded-[24px] bg-[#021E32]/65 px-7 py-4">
             <AudioLines size={31} color="#55C2E8" strokeWidth={2.2} />
-            <Text className="mt-3 text-[18px] font-semibold text-[#74D9F4]">Stay Aware</Text>
-            <Text className="mt-2 text-center text-[13px] leading-5 text-[#C6E8F5]">
+            <Text className="mt-2 text-[18px] font-semibold text-[#74D9F4]">Stay Aware</Text>
+            <Text className="mt-1.5 text-center text-[13px] leading-5 text-[#D8EDF6]">
               SoundSight helps you notice what&apos;s{`\n`}happening around you, so you can feel{`\n`}more confident and in control.
             </Text>
           </View>

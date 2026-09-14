@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import type React from 'react';
+import { useEffect } from 'react';
 import * as Sentry from '@sentry/react-native';
-import { Stack } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Platform, Text, View } from 'react-native';
 import { PortalHost } from '@rn-primitives/portal';
@@ -9,6 +10,9 @@ import { SoundSightProvider, useSoundSight } from '@/context/SoundSightContext';
 import { StrobeOverlay } from '@/components/StrobeOverlay';
 import '../global.css';
 import { preloadBackgroundAssets } from '@/services/backgroundAssets';
+import { APP_MAX_WIDTH } from '@/constants/navigation';
+
+let initialLandingRouteApplied = false;
 
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
@@ -16,6 +20,14 @@ Sentry.init({
 
 function RootAppContent() {
   const { isStrobeActive, dismissStrobe, feedbackMessage } = useSoundSight();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (initialLandingRouteApplied) return;
+    initialLandingRouteApplied = true;
+    if (pathname !== '/') router.replace('/');
+  }, [pathname, router]);
 
   return (
     <>
@@ -52,7 +64,7 @@ const RootLayout: React.FC = () => {
         style={{
           flex: 1,
           width: '100%',
-          maxWidth: Platform.OS === 'web' ? 430 : undefined,
+          maxWidth: Platform.OS === 'web' ? APP_MAX_WIDTH : undefined,
           alignSelf: 'center',
           overflow: 'hidden',
           backgroundColor: '#021E32',

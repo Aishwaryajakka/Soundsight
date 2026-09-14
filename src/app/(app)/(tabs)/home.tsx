@@ -45,6 +45,7 @@ export default function MapScreen() {
     clearDemoData,
     mode,
     enterLiveMode,
+    enterDemoMode,
     enterConversationMode,
     enableClientMicrophone,
     clientMicrophoneEnabled,
@@ -68,6 +69,11 @@ export default function MapScreen() {
   const startConversation = async () => {
     if (!clientMicrophoneEnabled && !await enableClientMicrophone()) return;
     enterConversationMode();
+  };
+  const switchToLive = async () => {
+    if (mode === 'live') return;
+    if (!clientMicrophoneEnabled && !await enableClientMicrophone()) return;
+    enterLiveMode();
   };
 
   // Recent sounds list (latest 4)
@@ -111,7 +117,12 @@ export default function MapScreen() {
           onToggleListening={toggleListening}
         />
 
-        <View className="mb-2 mt-1 h-10 flex-row rounded-xl border border-[#55C2E8]/20 bg-[#062C45] p-1">
+        <View className="mb-2 mt-1 h-9 flex-row self-end rounded-xl border border-[#55C2E8]/20 bg-[#062C45] p-1">
+          <Pressable accessibilityRole="button" accessibilityState={{ selected: operatingMode === 'live' }} accessibilityLabel="Use Live Mode" onPress={() => { void switchToLive(); }} className={`min-w-[64px] items-center justify-center rounded-lg px-3 ${operatingMode === 'live' ? 'bg-[#55C2E8]' : ''}`}><Text className={`text-[12px] font-semibold ${operatingMode === 'live' ? 'text-[#021E32]' : 'text-[#A9C6D8]'}`}>Live</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityState={{ selected: operatingMode === 'demo' }} accessibilityLabel="Use Demo Mode" onPress={enterDemoMode} className={`min-w-[64px] items-center justify-center rounded-lg px-3 ${operatingMode === 'demo' ? 'bg-[#55C2E8]' : ''}`}><Text className={`text-[12px] font-semibold ${operatingMode === 'demo' ? 'text-[#021E32]' : 'text-[#A9C6D8]'}`}>Demo</Text></Pressable>
+        </View>
+
+        <View className="mb-2 h-10 flex-row rounded-xl border border-[#55C2E8]/20 bg-[#062C45] p-1">
           <Pressable onPress={enterLiveMode} className={`flex-1 items-center justify-center rounded-lg ${mode !== 'conversation' ? 'bg-[#55C2E8]' : ''}`}><Text className={`text-[13px] font-semibold ${mode !== 'conversation' ? 'text-[#021E32]' : 'text-[#A9C6D8]'}`}>Awareness</Text></Pressable>
           <Pressable onPress={() => { void startConversation(); }} className={`flex-1 items-center justify-center rounded-lg ${mode === 'conversation' ? 'bg-[#55C2E8]' : ''}`}><Text className={`text-[13px] font-semibold ${mode === 'conversation' ? 'text-[#021E32]' : 'text-[#A9C6D8]'}`}>Conversation</Text></Pressable>
         </View>

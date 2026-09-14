@@ -1,6 +1,8 @@
-import { Image, ImageBackground, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useCallback, useEffect, useRef } from 'react';
+import { Animated, Image, ImageBackground, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useRouter, type RelativePathString } from 'expo-router';
 import { BACKGROUND_ASSETS } from '@/services/backgroundAssets';
+import { APP_MAX_WIDTH } from '@/constants/navigation';
 
 const backgroundArtwork = BACKGROUND_ASSETS.splash;
 const brandArtwork = require('../../assets/SoundSightLogo.png');
@@ -8,12 +10,34 @@ const brandArtwork = require('../../assets/SoundSightLogo.png');
 export default function LandingScreen() {
   const router = useRouter();
   const { height, width } = useWindowDimensions();
-  const canvasHeight = Platform.OS === 'web' ? Math.min(height, 900) : height;
-  const scale = Math.min(width / 390, canvasHeight / 844);
+  const canvasHeight = height;
+  const canvasWidth = Platform.OS === 'web' ? Math.min(width, APP_MAX_WIDTH) : width;
+  const scale = Math.min(canvasWidth / 390, canvasHeight / 844);
   const brandingSize = Math.round(280 * Math.max(0.9, Math.min(scale, 1.08)));
+  const progress = useRef(new Animated.Value(0.36)).current;
+  const navigationStarted = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const advance = useCallback(() => {
+    if (navigationStarted.current) return;
+    navigationStarted.current = true;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    router.replace('/microphone' as RelativePathString);
+  }, [router]);
+
+  useEffect(() => {
+    timer.current = setTimeout(advance, 5_000);
+    Animated.timing(progress, { toValue: 1, duration: 5_000, useNativeDriver: false }).start();
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = null;
+      progress.stopAnimation();
+    };
+  }, [advance, progress]);
 
   return (
-    <View style={[styles.root, { maxHeight: canvasHeight, marginTop: Platform.OS === 'web' ? Math.max(0, (height - canvasHeight) / 2) : 0 }]}>
+    <Pressable accessibilityRole="button" accessibilityLabel="Continue to microphone access" onPress={advance} style={styles.root}>
       <ImageBackground
         source={backgroundArtwork}
         resizeMode="cover"
@@ -37,7 +61,7 @@ export default function LandingScreen() {
         style={[
           styles.mission,
           {
-            left: Math.max(32, width * 0.082),
+            left: Math.max(32, canvasWidth * 0.082),
             bottom: canvasHeight * 0.145,
           },
         ]}
@@ -45,18 +69,13 @@ export default function LandingScreen() {
         A MORE{`\n`}ACCESSIBLE{`\n`}WORLD{`\n`}AROUND YOU
       </Text>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Enter SoundSight"
-        onPress={() => router.push('/microphone' as RelativePathString)}
-        style={[styles.loadingControl, { bottom: canvasHeight * 0.045 }]}
-      >
+      <View pointerEvents="none" style={[styles.loadingControl, { bottom: canvasHeight * 0.045 }]}>
         <View style={styles.progressTrack}>
-          <View style={styles.progressActive} />
+          <Animated.View style={[styles.progressActive, { width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
         </View>
         <Text style={styles.loadingText}>Loading...</Text>
-      </Pressable>
-    </View>
+      </View>
+    </Pressable>
   );
 }
 
@@ -103,7 +122,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(4, 51, 77, 0.78)',
   },
   progressActive: {
-    width: '36%',
     height: 3,
     borderRadius: 2,
     backgroundColor: '#00B9F2',

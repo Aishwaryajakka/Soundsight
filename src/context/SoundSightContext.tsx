@@ -583,7 +583,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!hapticAlertsEnabled) { showFeedback('Enable Haptic Feedback to test vibration.'); return; }
     if (Platform.OS === 'web') { showFeedback('Haptics are unavailable in web browsers.'); return; }
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      .then(() => showFeedback('Test haptic sent.'))
+      .then(() => showFeedback('Test haptic requested on this device.'))
       .catch(() => showFeedback('Haptics are unavailable on this device.'));
   }, [hapticAlertsEnabled, showFeedback]);
 
@@ -593,6 +593,10 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
    */
   const ingestSoundEvent = useCallback(
     (event: SoundEvent) => {
+      const demoEvent = isDemoRecordId(event.id);
+      // Live transport events are admitted only in a live/conversation mode;
+      // deterministic demo records are admitted only while Demo Mode is active.
+      if ((mode === 'demo' && !demoEvent) || (mode !== 'demo' && demoEvent)) return;
       if (mode !== 'demo' && !isLiveListening) return;
       // One stabilized event ID may arrive more than once after transport
       // reconnects. Suppress every downstream side effect, including haptics.
@@ -644,8 +648,8 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return unsubscribe;
   }, [ingestSoundEvent]);
 
-  // One shared live AI source and one state subscription. Demo Mode continues
-  // to publish through the same event service when the engine is unavailable.
+  // One shared live AI source and one state subscription. Demo Mode stops this
+  // transport and uses its explicitly identified deterministic records.
   useEffect(() => {
     const unsubscribeConnectionState = liveSoundEventService.subscribeConnectionState(
       setLiveConnectionState
