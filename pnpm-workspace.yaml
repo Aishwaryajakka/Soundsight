@@ -1,7 +1,7 @@
 packages:
   - packages/*
 allowBuilds:
-  '@sentry/cli': set this to true or false
+  '@sentry/cli': false
   "@shopify/react-native-skia": true
   better-sqlite3: true
   esbuild: true
@@ -36,10 +36,6 @@ catalog:
   typescript: ~5.9.2
 lockfileIncludeTarballUrl: false
 minimumReleaseAge: 1440
-onlyBuiltDependencies:
-  - "@shopify/react-native-skia"
-  - better-sqlite3
-  - esbuild
 overrides:
   expo-audio: 55.0.6
   expo-video: 55.0.5
