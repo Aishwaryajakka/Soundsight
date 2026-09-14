@@ -7,11 +7,12 @@ import { SoundIcon } from '@/components/SoundIcon';
 import { SoundActivityGraph } from '@/components/SoundActivityGraph';
 import { useSoundSight } from '@/context/SoundSightContext';
 import { filterSoundHistory } from '@/services/soundHistorySearch';
+import { groupSoundHistory, type GroupedSoundOccurrence } from '@/services/soundHistoryGrouping';
 import type { SoundEvent } from '@/types/sound';
 
 interface HistorySection {
   title: string;
-  events: SoundEvent[];
+  events: GroupedSoundOccurrence[];
 }
 
 const formatDirection = (direction: string) =>
@@ -27,7 +28,7 @@ const formatHistoryTime = (timestamp: number) => {
 };
 
 export default function HistoryScreen() {
-  const { soundHistory, clearHistory, showConfidence } = useSoundSight();
+  const { soundHistory, clearHistory, deleteHistoryItem, showConfidence } = useSoundSight();
   const [query, setQuery] = useState('');
   const [searchVisible, setSearchVisible] = useState(false);
   const [clearConfirmationVisible, setClearConfirmationVisible] = useState(false);
@@ -48,9 +49,9 @@ export default function HistoryScreen() {
       else earlier.push(event);
     });
     return [
-      { title: 'Today', events: today },
-      { title: 'Yesterday', events: yesterday },
-      { title: 'Earlier', events: earlier },
+      { title: 'Today', events: groupSoundHistory(today) },
+      { title: 'Yesterday', events: groupSoundHistory(yesterday) },
+      { title: 'Earlier', events: groupSoundHistory(earlier) },
     ].filter((section) => section.events.length > 0);
   }, [query, soundHistory]);
 
@@ -91,14 +92,18 @@ export default function HistoryScreen() {
           <View key={section.title} className="mb-3">
             <Text className="mb-1.5 text-[13px] font-semibold text-[#35C8F2]">{section.title}</Text>
             <View className="gap-1.5">
-              {section.events.map((sound) => {
-                const confidence = Math.round(Math.max(0, Math.min(1, sound.confidence)) * 100);
+              {section.events.map((occurrence) => {
+                const sound = occurrence.event;
+                const confidence = Math.round(Math.max(0, Math.min(1, occurrence.averageConfidence)) * 100);
                 return (
-                  <Pressable key={sound.id} accessibilityRole="button" accessibilityLabel={`${sound.label}, ${formatDirection(sound.direction)}${showConfidence ? `, ${confidence} percent confidence` : ''}`} onPress={() => setSelectedSound(sound)} className="h-14 flex-row items-center rounded-xl border border-[#55C2E8]/20 bg-[#062C45]/90 px-2.5">
+                  <View key={sound.id} className="h-14 flex-row items-center rounded-xl border border-[#55C2E8]/20 bg-[#062C45]/90 px-2.5">
+                  <Pressable accessibilityRole="button" accessibilityLabel={`${sound.label}, ${formatDirection(sound.direction)}${occurrence.count > 1 ? `, detected ${occurrence.count} times` : ''}${showConfidence ? `, ${confidence} percent average confidence` : ''}`} onPress={() => setSelectedSound(sound)} className="flex-1 flex-row items-center">
                     <View className="h-10 w-10 items-center justify-center rounded-[10px] bg-[#0A3B59]"><SoundIcon name={sound.iconName} soundType={sound.soundType} size={20} color="#E4F7FD" /></View>
-                    <View className="ml-3 flex-1"><Text className="text-[13px] font-semibold text-[#F7FBFD]">{sound.label}</Text><Text className="mt-0.5 text-[11px] text-[#A9C6D8]">{formatDirection(sound.direction)} · {formatHistoryTime(sound.timestamp)}</Text></View>
+                    <View className="ml-3 flex-1"><Text className="text-[13px] font-semibold text-[#F7FBFD]">{sound.label}</Text><Text className="mt-0.5 text-[11px] text-[#A9C6D8]">{formatDirection(sound.direction)}{occurrence.count > 1 ? ` · detected ${occurrence.count} times` : ''} · {formatHistoryTime(sound.timestamp)}</Text></View>
                     {showConfidence && <Text className="ml-3 text-[15px] font-medium text-[#F7FBFD]">{confidence}%</Text>}
                   </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${sound.label} occurrence`} onPress={() => occurrence.eventIds.forEach(deleteHistoryItem)} className="ml-1 h-10 w-8 items-center justify-center"><Trash2 size={15} color="#6F93A8" /></Pressable>
+                  </View>
                 );
               })}
             </View>

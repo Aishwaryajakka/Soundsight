@@ -67,16 +67,16 @@ export default function AlertsScreen() {
           })}
           {recentAlerts.length === 0 && (
             <View className="items-center rounded-xl border border-[#55C2E8]/10 bg-[#062C45]/45 py-6">
-              <Text className="text-[13px] font-semibold text-[#C6E8F5]">No important alerts.</Text>
-              <Text className="mt-1 text-[11px] text-[#8BAABD]">High-priority sounds will appear here.</Text>
+              <Text className="text-[13px] font-semibold text-[#C6E8F5]">No important alerts yet.</Text>
+              <Text className="mt-1 text-center text-[11px] text-[#8BAABD]">Important detected sounds will appear here.</Text>
             </View>
           )}
         </View>
 
         <View className="relative -mx-4 mt-2 h-[350px] overflow-hidden">
-          <View className="absolute inset-x-0 bottom-3 items-center px-10">
+          <View className="absolute inset-x-5 bottom-5 items-center rounded-[28px] border border-[#55C2E8]/10 bg-[#021E32]/75 px-8 py-5">
             <AudioLines size={31} color="#55C2E8" strokeWidth={2.2} />
-            <Text className="mt-3 text-[18px] font-semibold text-[#55C2E8]">Stay Aware</Text>
+            <Text className="mt-3 text-[18px] font-semibold text-[#74D9F4]">Stay Aware</Text>
             <Text className="mt-2 text-center text-[13px] leading-5 text-[#C6E8F5]">
               SoundSight helps you notice what&apos;s{`\n`}happening around you, so you can feel{`\n`}more confident and in control.
             </Text>

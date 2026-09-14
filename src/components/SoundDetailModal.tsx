@@ -28,7 +28,7 @@ export const SoundDetailModal: React.FC<SoundDetailModalProps> = ({ sound, visib
     { label: 'Direction', value: titleCase(sound.direction), icon: Compass },
     ...(showConfidence ? [{ label: 'Confidence', value: normalizedPercentage(sound.confidence), icon: Activity }] : []),
     { label: 'Intensity', value: normalizedPercentage(sound.intensity), icon: Gauge },
-    ...(soundLevel ? [{ label: 'Sound Level', value: soundLevel, icon: Volume2 }] : []),
+    ...(soundLevel ? [{ label: 'Relative microphone level', value: soundLevel, icon: Volume2 }] : []),
     { label: 'Detected', value: localTimestamp(sound.timestamp), icon: Clock3 },
   ];
 

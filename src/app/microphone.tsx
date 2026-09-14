@@ -17,10 +17,15 @@ const features = [
 
 export default function MicrophoneScreen() {
   const router = useRouter();
-  const { loadDemoData } = useSoundSight();
+  const { loadDemoData, clearDemoData, demoModeEnabled, setIsLiveListening } = useSoundSight();
   const { width } = useWindowDimensions();
   const contentWidth = Math.min(width - 40, 342);
   const enterApp = () => router.replace('/(app)/(tabs)/home');
+  const enterLive = () => {
+    if (demoModeEnabled) clearDemoData();
+    setIsLiveListening(true);
+    enterApp();
+  };
   const enterDemo = () => {
     loadDemoData();
     enterApp();
@@ -41,8 +46,8 @@ export default function MicrophoneScreen() {
           {features.map((feature) => <View key={feature.label} className="h-10 flex-row items-center"><View className="w-8 items-center"><feature.icon size={23} color="#55C2E8" strokeWidth={2.15} /></View><Text className="ml-3 text-[14px] text-[#F7FBFD]">{feature.label}</Text></View>)}
         </View>
         <View className="mx-auto mt-5" style={{ width: contentWidth }}>
-          <Pressable accessibilityRole="button" onPress={enterApp} className="h-12 flex-row items-center justify-center rounded-2xl bg-[#55C2E8]"><Text className="text-[15px] font-semibold text-[#021E32]">Allow Microphone Access</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={enterDemo} className="mt-[10px] h-11 items-center justify-center rounded-2xl border-[1.5px] border-[#35C8F2]"><Text className="text-[14px] font-semibold text-[#48D0F5]">Continue in Demo Mode</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={enterLive} className="h-12 flex-row items-center justify-center rounded-2xl bg-[#55C2E8] active:opacity-80"><Text className="text-[15px] font-semibold text-[#021E32]">Allow Microphone Access</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={enterDemo} className="mt-[10px] h-11 items-center justify-center rounded-2xl border-[1.5px] border-[#35C8F2] active:opacity-70"><Text className="text-[14px] font-semibold text-[#48D0F5]">Continue in Demo Mode</Text></Pressable>
           <View className="mt-4 flex-row items-start justify-center px-5"><LockKeyhole size={19} color="#7BB7D1" strokeWidth={1.8} /><Text className="ml-3 text-[12px] leading-[16px] text-[#A9C6D8]"><Text className="font-semibold text-[#C6E8F5]">Your privacy matters.{`\n`}</Text>You can change this anytime{`\n`}in Settings.</Text></View>
         </View>
       </ScrollView>

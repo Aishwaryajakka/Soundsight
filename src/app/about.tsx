@@ -22,11 +22,11 @@ export default function AboutScreen() {
       <ScreenArtwork source={BACKGROUND_ASSETS.about} />
       <Pressable accessibilityLabel="Back to Settings" onPress={() => router.back()} className="absolute left-3 top-1 z-20 h-11 w-11 items-center justify-center"><ChevronLeft size={25} color="#C6E8F5" /></Pressable>
       <View className="z-10 flex-1 items-center px-5">
-        <View className="items-center pt-3">
+        <Pressable accessibilityRole="button" accessibilityLabel="Go to SoundSight map" onPress={() => router.replace('/(app)/(tabs)/home')} className="items-center pt-3">
           <SoundSightMark size={142} variant="dark-background" />
           <View className="mt-1"><SoundSightWordmark markSize={0} textSize="xl" variant="dark" /></View>
           <Text className="mt-1 text-[9px] tracking-[3.8px] text-[#C6E8F5]">SOUNDS REVEAL MORE</Text>
-        </View>
+        </Pressable>
         <View className="mt-8 w-full rounded-2xl border border-[#55C2E8]/20 bg-[#062C45]/95 px-4">
           {rows.map((row, index) => <Pressable key={row.label} onPress={() => router.push({ pathname: '/info/[slug]', params: { slug: row.slug } } as unknown as Href)} className={`h-[58px] flex-row items-center ${index > 0 ? 'border-t border-[#55C2E8]/15' : ''}`}><row.icon size={20} color="#D5EDF7" strokeWidth={1.8} /><Text className="ml-3 flex-1 text-[15px] text-[#F7FBFD]">{row.label}</Text><ChevronRight size={19} color="#C6E8F5" strokeWidth={1.8} /></Pressable>)}
         </View>

@@ -43,6 +43,8 @@ export default function MapScreen() {
     conversationPaused,
     setConversationPaused,
     clearTranscripts,
+    operatingMode,
+    clearDemoData,
   } = useSoundSight();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -53,6 +55,10 @@ export default function MapScreen() {
   };
 
   const toggleListening = () => {
+    if (operatingMode === 'demo') {
+      clearDemoData();
+      return;
+    }
     setIsLiveListening(!isLiveListening);
   };
 
@@ -92,6 +98,7 @@ export default function MapScreen() {
 
         <AppHeader
           listening={isLiveListening}
+          operatingMode={operatingMode}
           connectionState={liveConnectionState}
           onToggleListening={toggleListening}
         />
@@ -105,7 +112,7 @@ export default function MapScreen() {
         {/* 2. HERO SPATIAL SOUND MAP */}
         <View className="relative my-1 items-center justify-center">
           <SoundRadarCanvas
-            sounds={isLiveListening ? activeSounds : []}
+            sounds={isLiveListening || operatingMode === 'demo' ? activeSounds : []}
             selectedSound={selectedSound}
             onSelectSound={handleSelectSound}
             isListening={isLiveListening}
@@ -116,7 +123,7 @@ export default function MapScreen() {
           />
 
           {/* Listening Paused Subtle Banner */}
-          {!isLiveListening && (
+          {!isLiveListening && operatingMode !== 'demo' && (
             <View className="absolute inset-0 bg-[#021E32]/80 rounded-full items-center justify-center p-6 border border-[#164E72]/50">
               <View className="w-11 h-11 rounded-full bg-[#062C45] border border-[#247CA8] items-center justify-center mb-2">
                 <Pause size={20} color="#55C2E8" />
@@ -131,7 +138,7 @@ export default function MapScreen() {
           )}
 
           {/* Ambient Quiet Environment Indicator */}
-          {isLiveListening && activeSounds.length === 0 && (
+          {(isLiveListening || operatingMode === 'demo') && activeSounds.length === 0 && (
             <View className="absolute bottom-5 bg-[#062C45]/80 px-3.5 py-1.5 rounded-full border border-[#164E72]/80">
               <Text className="text-xs font-medium text-[#C6E8F5]">
                 Quiet Environment • No Active Sounds
@@ -191,7 +198,7 @@ export default function MapScreen() {
           <View className="mt-3 flex-row items-center justify-between"><Text className="text-2xl font-bold text-[#F7FBFD]">Conversation Mode</Text><View className="rounded-full border border-[#55C2E8]/25 bg-[#062C45] px-3 py-1.5"><Text className="text-xs font-semibold capitalize text-[#55C2E8]">{conversationPaused ? 'Paused' : transcriptionStatus}</Text></View></View>
           <Text className="mb-3 mt-7 text-[13px] font-bold tracking-[2px] text-[#55C2E8]">LIVE CAPTIONS</Text>
           <ScrollView className="h-[330px] rounded-2xl border border-[#55C2E8]/15 bg-[#062C45]/85 p-4" nestedScrollEnabled>
-            {transcripts.length === 0 ? <View className="h-[285px] items-center justify-center"><Text className="text-center text-base font-semibold text-[#C6E8F5]">No conversation yet.</Text><Text className="mt-2 text-center text-sm text-[#8BAABD]">Start listening to see live captions.</Text></View> : transcripts.slice(-8).map((segment, index, visible) => <View key={segment.id} className={`${index > 0 ? 'mt-5' : ''}`}><Text className={`${index === visible.length - 1 ? 'text-[22px] font-semibold leading-8 text-[#F7FBFD]' : 'text-[16px] leading-6 text-[#8BAABD]'}`}>{segment.text}</Text></View>)}
+            {transcripts.length === 0 ? <View className="h-[285px] items-center justify-center"><Text className="text-center text-base font-semibold text-[#C6E8F5]">Start a conversation to see live captions.</Text></View> : transcripts.slice(-8).map((segment, index, visible) => <View key={segment.id} className={`${index > 0 ? 'mt-5' : ''}`}><Text className={`${index === visible.length - 1 ? 'text-[22px] font-semibold leading-8 text-[#F7FBFD]' : 'text-[16px] leading-6 text-[#8BAABD]'}`}>{segment.text}</Text></View>)}
           </ScrollView>
           <View className="mt-4 flex-row gap-2">
             <Pressable onPress={() => setConversationPaused(!conversationPaused)} className="h-11 flex-1 items-center justify-center rounded-xl border border-[#55C2E8]/30"><Text className="text-sm font-semibold text-[#C6E8F5]">{conversationPaused ? 'Resume' : 'Pause'}</Text></Pressable>

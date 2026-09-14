@@ -5,9 +5,11 @@ import type { LiveSoundConnectionState } from '@/services/liveSoundEventService'
 import { SoundSightWordmark } from './branding/SoundSightWordmark';
 
 interface AppHeaderProps {
+  operatingMode?: 'live' | 'demo';
   listening?: boolean;
   connectionState?: LiveSoundConnectionState;
   onToggleListening?: () => void;
+  onLogoPress?: () => void;
 }
 
 const statusPresentation = (state: LiveSoundConnectionState) => {
@@ -19,23 +21,27 @@ const statusPresentation = (state: LiveSoundConnectionState) => {
     case 'error':
       return { label: 'AI Offline', accessibilityLabel: 'Live AI is offline. Demo Mode is available.' };
     default:
-      return { label: 'Demo Mode', accessibilityLabel: 'Live AI disconnected. Demo Mode is active.' };
+      return { label: 'Disconnected', accessibilityLabel: 'Live AI disconnected. Reconnection will be attempted.' };
   }
 };
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
   listening,
+  operatingMode = 'live',
   connectionState,
   onToggleListening,
+  onLogoPress,
 }) => {
-  const status = connectionState ? statusPresentation(connectionState) : null;
+  const status = operatingMode === 'demo'
+    ? { label: 'Demo', accessibilityLabel: 'Demo mode. Showing deterministic sample data.' }
+    : connectionState ? statusPresentation(connectionState) : null;
   const label = status?.label ?? (listening ? 'Listening…' : 'Paused');
   const accessibilityLabel = status?.accessibilityLabel ??
     (listening ? 'Listening. Tap to pause.' : 'Paused. Tap to listen.');
 
   return (
     <View className="h-14 flex-row items-center justify-between">
-      <SoundSightWordmark markSize={36} textSize="lg" variant="dark" />
+      {onLogoPress ? <Pressable accessibilityRole="button" accessibilityLabel="Go to SoundSight map" onPress={onLogoPress}><SoundSightWordmark markSize={36} textSize="lg" variant="dark" /></Pressable> : <SoundSightWordmark markSize={36} textSize="lg" variant="dark" />}
       {typeof listening === 'boolean' && (
         <Pressable
           accessibilityRole="button"

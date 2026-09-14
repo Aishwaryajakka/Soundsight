@@ -36,6 +36,7 @@ import {
 } from '@/services/soundSettingsStorage';
 
 export interface SoundSightContextType {
+  operatingMode: 'live' | 'demo';
   liveConnectionState: LiveSoundConnectionState;
   isLiveListening: boolean;
   setIsLiveListening: (val: boolean) => void;
@@ -98,6 +99,8 @@ export interface SoundSightContextType {
   demoModeEnabled: boolean;
   loadDemoData: () => void;
   clearDemoData: () => void;
+  feedbackMessage: string | null;
+  showFeedback: (message: string) => void;
 }
 
 const INITIAL_SETTINGS: AppSettings = {
@@ -372,7 +375,14 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [transcripts, setTranscripts] = useState<TranscriptSegment[]>([]);
   const [transcriptionStatus, setTranscriptionStatus] = useState<TranscriptionStatus>('offline');
   const [conversationPaused, setConversationPaused] = useState(false);
-  const [demoModeEnabled, setDemoModeEnabled] = useState(false);
+  const [operatingMode, setOperatingMode] = useState<'live' | 'demo'>('live');
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showFeedback = useCallback((message: string) => {
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    setFeedbackMessage(message);
+    feedbackTimer.current = setTimeout(() => setFeedbackMessage(null), 2400);
+  }, []);
   const transcriptsRestored = useRef(false);
   const transcriptsClearedDuringRestore = useRef(false);
 
@@ -383,22 +393,23 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => liveSoundEventService.subscribeTranscriptionStatus(setTranscriptionStatus), []);
   useEffect(() => { liveSoundEventService.setConversationMode(productMode === 'conversation', conversationPaused); if (productMode !== 'conversation') setConversationPaused(false); }, [productMode, conversationPaused]);
 
-  const clearTranscripts = useCallback(() => { if (!transcriptsRestored.current) transcriptsClearedDuringRestore.current = true; setTranscripts([]); void transcriptStorage.clear(); }, []);
+  const clearTranscripts = useCallback(() => { if (!transcriptsRestored.current) transcriptsClearedDuringRestore.current = true; setTranscripts([]); void transcriptStorage.clear(); showFeedback('Conversation transcripts cleared.'); }, [showFeedback]);
 
   const clearDemoData = useCallback(() => {
-    setDemoModeEnabled(false);
+    setOperatingMode('live');
     setIsLiveListening(true);
     setActiveSounds((current) => current.filter((event) => !isDemoRecordId(event.id)));
     setSoundHistory((current) => current.filter((event) => !isDemoRecordId(event.id)));
     setTranscripts((current) => current.filter((segment) => !isDemoRecordId(segment.id)));
     setSelectedSound((current) => current && isDemoRecordId(current.id) ? null : current);
     liveSoundEventService.start();
-  }, []);
+    showFeedback('Demo data cleared. Live mode restored.');
+  }, [showFeedback]);
 
   const loadDemoData = useCallback(() => {
     const demoEvents = createDemoSoundEvents();
     const demoTranscripts = createDemoTranscripts();
-    setDemoModeEnabled(true);
+    setOperatingMode('demo');
     setIsLiveListening(false);
     liveSoundEventService.stop();
     setSoundHistory((current) => mergeSoundHistory(demoEvents, current));
@@ -407,7 +418,8 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       ...current.filter((event) => !isDemoRecordId(event.id)),
     ].slice(0, 4));
     setTranscripts((current) => normalizeTranscripts([...current, ...demoTranscripts]));
-  }, []);
+    showFeedback('Demo data loaded.');
+  }, [showFeedback]);
 
   useEffect(() => {
     let cancelled = false;
@@ -499,9 +511,12 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   );
 
   const testHaptic = useCallback(() => {
-    if (Platform.OS === 'web') return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
-  }, []);
+    if (!hapticAlertsEnabled) { showFeedback('Enable Haptic Feedback to test vibration.'); return; }
+    if (Platform.OS === 'web') { showFeedback('Haptics are unavailable in web browsers.'); return; }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      .then(() => showFeedback('Test haptic sent.'))
+      .catch(() => showFeedback('Haptics are unavailable on this device.'));
+  }, [hapticAlertsEnabled, showFeedback]);
 
   /**
    * Centralized sound event ingestion
@@ -509,6 +524,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
    */
   const ingestSoundEvent = useCallback(
     (event: SoundEvent) => {
+      if (operatingMode === 'live' && !isLiveListening) return;
       // One stabilized event ID may arrive more than once after transport
       // reconnects. Suppress every downstream side effect, including haptics.
       if (!acceptUniqueEventId(
@@ -548,7 +564,7 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setIsStrobeActive(true);
       }
     },
-    [triggerHaptic, visualAlertsEnabled]
+    [triggerHaptic, visualAlertsEnabled, operatingMode, isLiveListening]
   );
 
   // Subscribe context to soundEventService
@@ -618,7 +634,8 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
     setSoundHistory([]);
     void soundHistoryStorage.clear();
-  }, []);
+    showFeedback('Sound history cleared.');
+  }, [showFeedback]);
 
   const deleteHistoryItem = useCallback((id: string) => {
     if (!historyRestored.current) {
@@ -628,7 +645,8 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       );
     }
     setSoundHistory((prev) => prev.filter((item) => item.id !== id));
-  }, []);
+    showFeedback('History occurrence deleted.');
+  }, [showFeedback]);
 
   const toggleAlertTrigger = useCallback((id: string) => {
     setAlertTriggers((prev) =>
@@ -730,9 +748,12 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       conversationPaused,
       setConversationPaused,
       clearTranscripts,
-      demoModeEnabled,
+      operatingMode,
+      demoModeEnabled: operatingMode === 'demo',
       loadDemoData,
       clearDemoData,
+      feedbackMessage,
+      showFeedback,
     }),
     [
       liveConnectionState,
@@ -777,9 +798,11 @@ export const SoundSightProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       transcriptionStatus,
       conversationPaused,
       clearTranscripts,
-      demoModeEnabled,
+      operatingMode,
       loadDemoData,
       clearDemoData,
+      feedbackMessage,
+      showFeedback,
     ]
   );
 

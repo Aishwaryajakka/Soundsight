@@ -14,14 +14,14 @@ import { BACKGROUND_ASSETS } from '@/services/backgroundAssets';
 
 export default function RecentSoundsScreen() {
   const router = useRouter();
-  const { soundHistory, isLiveListening, setIsLiveListening, showConfidence } = useSoundSight();
+  const { soundHistory, isLiveListening, setIsLiveListening, showConfidence, operatingMode, liveConnectionState } = useSoundSight();
   const [selectedSound, setSelectedSound] = useState<SoundEvent | null>(null);
 
   return (
     <SafeAreaView className="flex-1 overflow-hidden bg-[#021E32]">
       <ScreenArtwork source={BACKGROUND_ASSETS.recent} />
       <ScrollView className="z-10 flex-1" contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 150 }} showsVerticalScrollIndicator={false}>
-        <AppHeader listening={isLiveListening} onToggleListening={() => setIsLiveListening(!isLiveListening)} />
+        <AppHeader listening={isLiveListening} operatingMode={operatingMode} connectionState={liveConnectionState} onToggleListening={() => setIsLiveListening(!isLiveListening)} onLogoPress={() => router.replace('/(app)/(tabs)/home')} />
         <View className="h-12 flex-row items-center justify-between">
           <Text className="text-[20px] font-bold text-[#F7FBFD]">Recent Sounds</Text>
           <Pressable accessibilityRole="button" onPress={() => router.push('/(app)/(tabs)/history')} className="h-10 flex-row items-center"><Text className="text-[12px] font-medium text-[#D2E6F0]">See all</Text><ChevronRight size={15} color="#D2E6F0" /></Pressable>
