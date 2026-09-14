@@ -13,7 +13,6 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from audio_capture import AudioCaptureError, print_input_devices, record_test, run_meter, visualize
 from config import AudioConfig
 
 
@@ -155,9 +154,9 @@ def classify_audio_source(config: AudioConfig, source, *, on_event=None, stop_ev
             if on_audio_chunk is not None: on_audio_chunk(block, source.sample_rate)
             buffered = np.concatenate((buffered, block), axis=0)
             if time.monotonic() - last_metrics >= config.output_interval:
-                from audio_capture import calculate_metrics
-                metrics = calculate_metrics(block)
-                print(f"Client audio: RMS {metrics.combined_rms:.3f} Peak {metrics.peak:.3f} Buffer {len(buffered) / source.sample_rate:.2f}s", flush=True)
+                rms = float(np.sqrt(np.mean(np.square(block.astype(np.float64, copy=False)))))
+                peak = float(np.max(np.abs(block)))
+                print(f"Client audio: RMS {rms:.3f} Peak {peak:.3f} Buffer {len(buffered) / source.sample_rate:.2f}s", flush=True)
                 last_metrics = time.monotonic()
             while len(buffered) >= window_frames:
                 window = buffered[:window_frames]
@@ -263,6 +262,8 @@ def main() -> int:
     args = build_parser().parse_args()
     try:
         if args.list_devices:
+            from audio_capture import print_input_devices
+
             return 0 if print_input_devices() else 1
         config = AudioConfig(
             device=args.device,
@@ -291,8 +292,12 @@ def main() -> int:
         )
         config.validate()
         if args.record_test is not None:
+            from audio_capture import record_test
+
             record_test(config, args.record_test, Path(__file__).parent / "debug" / "test_capture.wav")
         elif args.visualize:
+            from audio_capture import visualize
+
             visualize(config)
         elif args.classify:
             classify_live(config)
@@ -310,10 +315,12 @@ def main() -> int:
             source_kind = "websocket" if "PORT" in os.environ else args.source
             asyncio.run(serve_engine(config, test_event_only=args.send_test_event, source_kind=source_kind))
         else:
+            from audio_capture import run_meter
+
             run_meter(config)
     except KeyboardInterrupt:
         print("\nCapture stopped.")
-    except (AudioCaptureError, ValueError, RuntimeError) as exc:
+    except (ValueError, RuntimeError) as exc:
         print(f"Audio capture error: {exc}", file=sys.stderr)
         return 2
     return 0

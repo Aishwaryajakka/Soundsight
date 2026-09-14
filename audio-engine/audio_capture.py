@@ -10,14 +10,30 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
-import sounddevice as sd
 import soundfile as sf
+
+try:
+    import sounddevice as sd
+except (ImportError, OSError) as exc:
+    sd = None
+    _SOUNDDEVICE_IMPORT_ERROR: Optional[Exception] = exc
+else:
+    _SOUNDDEVICE_IMPORT_ERROR = None
 
 from config import AudioConfig
 
 
 class AudioCaptureError(RuntimeError):
     """Raised when microphone capture cannot be configured or started."""
+
+
+def _require_sounddevice() -> None:
+    if sd is None:
+        detail = f" ({_SOUNDDEVICE_IMPORT_ERROR})" if _SOUNDDEVICE_IMPORT_ERROR else ""
+        raise AudioCaptureError(
+            "Local microphone capture is unavailable because PortAudio/sounddevice "
+            f"is not installed on this system{detail}."
+        )
 
 
 @dataclass(frozen=True)
@@ -29,6 +45,7 @@ class AudioMetrics:
 
 
 def list_input_devices() -> list[dict[str, object]]:
+    _require_sounddevice()
     try:
         devices = sd.query_devices()
     except sd.PortAudioError as exc:
@@ -67,6 +84,7 @@ def print_input_devices() -> list[dict[str, object]]:
 
 
 def _device_info(config: AudioConfig) -> dict[str, object]:
+    _require_sounddevice()
     try:
         device = sd.query_devices(config.device, "input")
     except (sd.PortAudioError, ValueError) as exc:

@@ -8,7 +8,6 @@ from typing import Optional, Protocol
 
 import numpy as np
 
-from audio_capture import LiveAudioCapture
 from config import AudioConfig
 
 
@@ -22,6 +21,8 @@ class AudioSource(Protocol):
 
 class MicrophoneAudioSource:
     def __init__(self, config: AudioConfig) -> None:
+        from audio_capture import LiveAudioCapture
+
         self.sample_rate, self.channels = config.sample_rate, config.channels
         self._capture = LiveAudioCapture(config)
     def start(self) -> None: self._capture.__enter__()
